@@ -4,9 +4,9 @@ module EAB where
 data EAB = Var String --
          | Num Int -- 
          | B Bool --f = B False --t = B True 
-         | Sum EAB EAB
-         | Prod EAB EAB
-         | Neg EAB
+         | Sum EAB EAB --
+         | Prod EAB EAB --
+         | Neg EAB --
          | Pred EAB
          | Suc EAB
          | And EAB EAB -- And f t -> And (B False) (B True)
@@ -27,24 +27,55 @@ data EAB = Var String --
 --Paso pequeño, todos los casos de la relación de la nota
 --evaluar primero el lado izq y luego el lado der
 --solo en el let primero necesitas primero llegar al valor para despues sustituir
-eval1 :: EAB -> EAB
+-- Ejemplo IF
+-- eval1 (If (Sum (Num 1) (Num 2)) (Num 3) (Num 4)) 
 
+eval1 :: EAB -> EAB
+eval1 (Var x) = Var x
+eval1 (B y) = B y
+eval1 (Num n) = Num n
 eval1 (Sum e1 e2) = case (e1,e2) of
                      (Num n, Num m) -> Num (n+m)
                      (Num n, e) -> Sum (Num n) (eval1 e)
-                     (e1,e2) -> Sum (eval1 e1) e2
+                     (_,_) -> Sum (eval1 e1) e2                     
 eval1 (Prod e1 e2) = case (e1,e2) of
                      (Num n, Num m) -> Num (n*m)
                      (Num n, e) -> Prod (Num n) (eval1 e)
-                     (e1,e2) -> Prod (eval1 e1) e2
+                     (_,_) -> Prod (eval1 e1) e2
 eval1 (Pred e1) = case e1 of
                     (Num n) -> Num (n-1)
-                    (e) -> Pred (eval1 e)
+                    _ -> Pred (eval1 e1)
+eval1 (Neg e1) = case e1 of
+                   (Num n) -> Num(-n)
+                   _ -> Neg (eval1 e1)
 eval1 (Suc e1) = case e1 of
-                   (Num n) -> Num(n+1)
-                   (e) -> Suc (eval1 e)
-eval1 (Let e1 (Abs var ))                   
-eval1 _ = e
+                   (Num n) -> Num (n+1)
+                   _ -> Suc (eval1 e1)                   
+eval1 (And e1 e2) = case (e1, e2) of
+                      (B b1, B b2) -> B (b1 && b1)
+                      (B b, e) -> And (B b) (eval1 e)
+                      (_, _) -> And (eval1 e1) e2
+eval1 (Or e1 e2) = case (e1, e2) of
+                    (B b1, B b2) -> B (b1 || b1)
+                    (B b, e) -> Or (B b) (eval1 e)
+                    (_, _) -> Or (eval1 e1) e2
+eval1 (Not e1) = case e1 of
+                  (B b) -> B (not b)
+                  _ -> Not (eval1 e1)
+eval1 (Iszero e1) = case e1 of
+                  (Num n) -> B (n == 0)
+                  _ -> Iszero (eval1 e1)
+eval1 (If e1 e2 e3) = case e1 of
+                        (B (True)) -> e2
+                        (B (False)) -> e3
+                        e -> If (eval1 e) e2 e3
+--necesitamos sustituir
+eval1 (Let e1 e2) = case e1 of
+                      Num n -> e2 
+                      Var x -> e2 
+                      e -> Let (eval e) (e2) -
+eval1 e = e
+
 
 --Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
 --solo evalua constantes y boolenaos 2.2
