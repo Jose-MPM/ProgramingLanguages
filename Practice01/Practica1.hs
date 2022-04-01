@@ -1,8 +1,8 @@
 module EAB where
 
 --debe de ser como el de las notas
-data EAB = Var String
-         | Num Int
+data EAB = Var String --
+         | Num Int -- 
          | B Bool --f = B False --t = B True 
          | Sum EAB EAB
          | Prod EAB EAB
@@ -33,7 +33,18 @@ eval1 (Sum e1 e2) = case (e1,e2) of
                      (Num n, Num m) -> Num (n+m)
                      (Num n, e) -> Sum (Num n) (eval1 e)
                      (e1,e2) -> Sum (eval1 e1) e2
-eval1 _ = error "Implementar"
+eval1 (Prod e1 e2) = case (e1,e2) of
+                     (Num n, Num m) -> Num (n*m)
+                     (Num n, e) -> Prod (Num n) (eval1 e)
+                     (e1,e2) -> Prod (eval1 e1) e2
+eval1 (Pred e1) = case e1 of
+                    (Num n) -> Num (n-1)
+                    (e) -> Pred (eval1 e)
+eval1 (Suc e1) = case e1 of
+                   (Num n) -> Num(n+1)
+                   (e) -> Suc (eval1 e)
+eval1 (Let e1 (Abs var ))                   
+eval1 _ = e
 
 --Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
 --solo evalua constantes y boolenaos 2.2
