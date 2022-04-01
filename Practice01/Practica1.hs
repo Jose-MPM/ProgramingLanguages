@@ -68,14 +68,50 @@ eval1 (Iszero e1) = case e1 of
 eval1 (If e1 e2 e3) = case e1 of
                         (B (True)) -> e2
                         (B (False)) -> e3
-                        e -> If (eval1 e) e2 e3
---necesitamos sustituir
-eval1 (Let e1 e2) = case e1 of
-                      Num n -> e2 
-                      Var x -> e2 
-                      e -> Let (eval e) (e2) -
+                        e -> If (eval1 e) e2 e3                   
+eval1 (Let e1 all@(Abs x e2)) = case e1 of
+                      (Num n) -> subs e2 (x, e1)
+                      (B b) -> subs e2 (x, e1)
+                      (e) -> Let (eval1 e) all
+-- a = Let (Prod (Num 25) (Num 2)) (Abs "x" (Sum (Num 30) (Var "x")))
 eval1 e = e
 
+type Subst = (String, EAB) -- [x:=e]
+
+subs :: EAB -> Subst -> EAB
+subs (Var s) (x, e) = if s == x
+                      then e
+                      else Var s
+subs (Sum e1 e2) s = Sum (subs e1 s) (subs e2 s)
+subs (Prod e1 e2) s = Prod (subs e1 s) (subs e2 s)
+subs (Neg e) s = Neg (subs e s)
+subs (Pred e) s = Pred (subs e s)
+subs (Suc e) s = Suc (subs e s)
+subs (And e1 e2) s = And (subs e1 s) (subs e2 s)
+subs (Or e1 e2) s = Or (subs e1 s) (subs e2 s)
+subs (Not e) s = Not (subs e s)
+subs (Iszero e) s = Iszero (subs e s)
+subs (If e1 e2 e3) s = If (subs e1 s) (subs e2 s) (subs e3 s)
+subs (Let e1 e2) s = Let (subs e1 s) (subs e2 s)
+subs (Abs z e) s@(x,r)
+  | z == x || elem z (fv r) = error "No se puede aplicar la substitución"
+  | otherwise = Abs z (subs e s)
+subs e s = e
+
+fv :: EAB -> [String]
+fv (Var str) = [str]
+fv (Sum e1 e2) = fv e1 ++ fv e2
+fv (Prod e1 e2) = fv e1 ++ fv e2
+fv (Neg e) = fv e
+fv (Pred e) = fv e
+fv (Suc e) = fv e
+fv (And e1 e2) = fv e1 ++ fv e2
+fv (Or e1 e2) = fv e1 ++ fv e2
+fv (Not e) = fv e
+fv (Iszero e) = fv e
+fv (If e1 e2 e3) = fv e1 ++ fv e2 ++ fv e3
+fv (Let e1 e2) = fv e1 ++ fv e2
+fv (Abs x e) = filter (/= x) (fv e)
 
 --Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
 --solo evalua constantes y boolenaos 2.2
@@ -95,8 +131,12 @@ eval _ = error "Implementar"
 
 --data Type = () -- Definir los tipos de EAB, es decir booleanos y naturales
 --type Ctx = () -- Definir un sinomo para los contextos, es decir, listas de tuplas
--- necesitmos definir el contexto vacio.
+-- necesitmos definir el contexto vacio -- 17
 
+data Type = TNum | TBool deriving Show--nuestro Type solo pueden ser los dos tipos TNum y TBool
+-- Num 5 :- TNat y B False :-TBool 
+
+type Ctx = [(String,Type)] deriving Show-- ->  :t (("c",TNum),("x",TBool)) 7u7
 --vt :: Ctx -> EAB -> Type -> Bool
 --vt _ _ _ = error "Implementar"
 
