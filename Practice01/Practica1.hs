@@ -76,7 +76,12 @@ eval1 (If e1 e2 e3) = case e1 of
                         (B (True)) -> e2
                         (B (False)) -> e3
                         (e) -> If (eval1 e) e2 e3
+eval1 (Let e1 e2) = case e1 of
+                      (Num n) -> e2 -- CUANDO ES VALOR APLICAR LA SUSTITUCION 
+                      (e) -> Let (eval e) (e2) -- EVALUAMOS HASTA TENER UN VALOR
+                        
 eval1 e = e
+
 
 --Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
 --solo evalua constantes y boolenaos 2.2
