@@ -20,7 +20,6 @@ data EAB = Var String --
          | Abs String EAB  --Operador para el ligado de variables
         -- y delegarle la tarea de revisar las cosas especiales
          deriving (Show)
-
 -- semantica dinámica se refiere al valor de un programa (solo importa el resultado)
 -- semantica estática se refiere a que este bien tipado y que no tenga FV
 
@@ -28,7 +27,12 @@ data EAB = Var String --
 --evaluar primero el lado izq y luego el lado der
 --solo en el let primero necesitas primero llegar al valor para despues sustituir
 -- Ejemplo IF
--- eval1 (If (Sum (Num 1) (Num 2)) (Num 3) (Num 4)) 
+-- eval1 (If (Sum (Num 1) (Num 2)) (Num 3) (Num 4))
+
+-- Ejemplo LET
+-- eval1 Let (Sum (Var "x") (Num 3)) (Abs ("x") (Sum (Var "x") (Num 5)))
+-- eval1 Let (Sum (Var "x") (Num 3)) (Abs ("x") (Sum (Var "x") (Num 5)))
+-- eval1 Let (Sum (Var "x") (Num 3)) (Abs ("x") (Sum (Var "x") (Num 5)))
 
 eval1 :: EAB -> EAB
 
@@ -76,12 +80,50 @@ eval1 (If e1 e2 e3) = case e1 of
                         (B (True)) -> e2
                         (B (False)) -> e3
                         (e) -> If (eval1 e) e2 e3
-eval1 (Let e1 e2) = case e1 of
-                      (Num n) -> e2 -- CUANDO ES VALOR APLICAR LA SUSTITUCION 
-                      (e) -> Let (eval e) (e2) -- EVALUAMOS HASTA TENER UN VALOR
+eval1 (Let e1 all@(Abs x e2)) = case e1 of
+                      (Num n) -> subs e2 (x, e1)
+                      (B b) -> subs e2 (x, e1) -- CUANDO ES VALOR APLICAR LA SUSTITUCION 
+                      (e) -> Let (eval1 e) all -- EVALUAMOS HASTA TENER UN VALOR
                         
 eval1 e = e
 
+type Subst = (String, EAB) -- [x:=e]
+
+subs :: EAB -> Subst -> EAB
+subs (Var s) (x, e) = if s == x
+                      then e
+                      else Var s
+subs (Sum e1 e2) s = Sum (subs e1 s) (subs e2 s)
+subs (Prod e1 e2) s = Prod (subs e1 s) (subs e2 s)
+subs (Neg e) s = Neg (subs e s)
+subs (Pred e) s = Pred (subs e s)
+subs (Suc e) s = Suc (subs e s)
+subs (And e1 e2) s = And (subs e1 s) (subs e2 s)
+subs (Or e1 e2) s = Or (subs e1 s) (subs e2 s)
+subs (Not e) s = Not (subs e s)
+subs (Iszero e) s = Iszero (subs e s)
+subs (If e1 e2 e3) s = If (subs e1 s) (subs e2 s) (subs e3 s)
+subs (Let e1 e2) s = Let (subs e1 s) (subs e2 s)
+subs (Abs z e) s@(x,r)
+  | z == x || elem z (fv r) = error "No se puede aplicar la substitución"
+  | otherwise = Abs z (subs e s)
+subs e s = e
+
+fv :: EAB -> [String]
+fv (Var str) = [str]
+fv (Sum e1 e2) = fv e1 ++ fv e2
+fv (Prod e1 e2) = fv e1 ++ fv e2
+fv (Neg e) = fv e
+fv (Pred e) = fv e
+fv (Suc e) = fv e
+fv (And e1 e2) = fv e1 ++ fv e2
+fv (Or e1 e2) = fv e1 ++ fv e2
+fv (Not e) = fv e
+fv (Iszero e) = fv e
+fv (If e1 e2 e3) = fv e1 ++ fv e2 ++ fv e3
+fv (Let e1 e2) = fv e1 ++ fv e2
+fv (Abs x e) = filter (/= x) (fv e)
+fv e = []
 
 --Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
 --solo evalua constantes y boolenaos 2.2
