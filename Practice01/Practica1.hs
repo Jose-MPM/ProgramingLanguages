@@ -26,6 +26,9 @@ data EAB = Var String --
 --Paso pequeño, todos los casos de la relación de la nota
 --evaluar primero el lado izq y luego el lado der
 --solo en el let primero necesitas primero llegar al valor para despues sustituir
+--Ejemplo NEG
+-- eval1 (Neg (And (B True) (B False)))
+
 -- Ejemplo IF
 -- eval1 (If (Sum (Num 1) (Num 2)) (Num 3) (Num 4))
 
@@ -129,8 +132,62 @@ fv e = []
 --solo evalua constantes y boolenaos 2.2
 --Un estado bloqueado es que ya no tiene otro paso de evaluación, es decir, ya llegaste
 --a un valor o tienes una variable libre (2+true)
+
+--evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Num 6))
+--evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Sum (Num 8) (Num 9)))
+
+--evals $ Pred $ And (B True) (B False)
+
+--evals $ If (Sum (Num 4) (Num 6)) (Num 4) (Num 7)
+--evals $ If (Iszero (Num 0)) (Num 5) (Num 7)
+
+--evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (Num 7)))
+--evals $ Let (Sum (Num 3) (B True)) (Abs "x" (Prod (Var "x") (Num 7)))
+--evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (B True)))
 evals :: EAB -> EAB 
-evals _ = error "Implementar"
+evals (Sum e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> Num (n+m)
+                     (e1,e2) -> Sum e1 e2
+evals (Prod e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> Num (n*m)
+                     (e1,e2) -> Prod e1 e2
+evals (Neg e1) = case evals e1 of
+                   (Num n) -> Num(-n)
+                   e -> Neg e 
+evals (Pred e1) = case evals e1 of
+                    (Num n) -> Num (n-1)
+                    e -> Pred e
+  
+evals (Suc e1) = case evals e1 of
+                   (Num n) -> Num (n+1)
+                   e -> Suc e 
+
+evals (And e1 e2) = case (evals e1, evals e2) of
+                      (B b1, B b2) -> B (b1 && b1)
+                      (e1, e2) -> And e1 e2
+
+evals (Or e1 e2) = case (evals e1, evals e2) of
+                    (B b1, B b2) -> B (b1 || b1)
+                    (e1, e2) -> Or e1 e2
+
+evals (Not e1) = case evals e1 of
+                  (B b) -> B (not b)
+                  e -> Not e
+
+evals (Iszero e1) = case evals e1 of
+                  (Num n) -> B (n == 0)
+                  (e) -> Iszero e
+
+evals (If e1 e2 e3) = case evals e1 of
+                        (B (True)) -> evals $ e2
+                        (B (False)) -> evals $ e3
+                        e -> If e e2 e3
+
+evals (Let e1 all@(Abs x e2)) = case evals e1 of
+                      (Num n) -> evals $ subs e2 (x, (Num n))
+                      (B b) -> evals $ subs e2 (x, (B b))
+                      e -> Let e all 
+evals e = e
 
 --Hace lo mismo que evals pero maneja errores 2.3
 --si no llegaste a un valor, mandar un error
