@@ -113,32 +113,166 @@ fv (If e1 e2 e3) = fv e1 ++ fv e2 ++ fv e3
 fv (Let e1 e2) = fv e1 ++ fv e2
 fv (Abs x e) = filter (/= x) (fv e)
 
---Segun yo este es el constanf folding, el del examen, el 2,de un programa es decir
---solo evalua constantes y boolenaos 2.2
---Un estado bloqueado es que ya no tiene otro paso de evaluación, es decir, ya llegaste
---a un valor o tienes una variable libre (2+true)
+-- Ejemplos
+
+-- >>> evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Num 6))
+-- >>> evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Sum (Num 8) (Num 9)))
+
+-- >>> evals $ Pred $ And (B True) (B False)
+
+-- >>> evals $ If (Sum (Num 4) (Num 6)) (Num 4) (Num 7)
+-- >>> evals $ If (Iszero (Num 0)) (Num 5) (Num 7)
+
+-- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (Num 7)))
+-- >>> evals $ Let (Sum (Num 3) (B True)) (Abs "x" (Prod (Var "x") (Num 7)))
+-- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (B True)))
+
+-- >>>  evals $ Sum (Prod (Num 2) (Num 6)) (B True)
+-- >>>  evals $ Sum (Prod (Num 2) (Num 6)) (B True)
+-- >>> evals $ Iszero (And (B True) (B False))
+-- >>> Sum (Prod (Num 2) (Num 6)) (B True)
+
+-- 
 evals :: EAB -> EAB 
-evals _ = error "Implementar"
+evals (Sum e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> Num (n+m)
+                     (e1,e2) -> Sum e1 e2
 
---Hace lo mismo que evals pero maneja errores 2.3
---si no llegaste a un valor, mandar un error
---Como (2+true) -> error
---Como (true-2) -> error
---mandar a llamar la fun evals y hacer un case of del resultado de llamar evals
---dependiendo de ese resultado regresar nuestro error personalizado
+evals (Prod e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> Num (n*m)
+                     (e1,e2) -> Prod e1 e2
+
+evals (Neg e1) = case evals e1 of
+                   (Num n) -> Num(-n)
+                   e -> Neg e 
+
+evals (Pred e1) = case evals e1 of
+                    (Num n) -> Num (n-1)
+                    e -> Pred e
+  
+evals (Suc e1) = case evals e1 of
+                   (Num n) -> Num (n+1)
+                   e -> Suc e 
+
+evals (And e1 e2) = case (evals e1, evals e2) of
+                      (B b1, B b2) -> B (b1 && b2)
+                      (e1, e2) -> And e1 e2
+
+evals (Or e1 e2) = case (evals e1, evals e2) of
+                    (B b1, B b2) -> B (b1 || b1)
+                    (e1, e2) -> Or e1 e2
+
+evals (Not e1) = case evals e1 of
+                  (B b) -> B (not b)
+                  e -> Not e
+
+evals (Iszero e1) = case evals e1 of
+                  (Num n) -> B (n == 0)
+                  (e) -> Iszero e
+
+evals (If e1 e2 e3) = case evals e1 of
+                        (B (True)) -> evals $ e2
+                        (B (False)) -> evals $ e3
+                        e -> If e e2 e3
+
+evals (Let e1 all@(Abs x e2)) = case evals e1 of
+                      (Num n) -> evals $ subs e2 (x, (Num n))
+                      (B b) -> evals $ subs e2 (x, (B b))
+                      e -> Let e all 
+evals e = e
+
+-- Ejemplos
+
+-- >>> eval $ Sum (B True) (Num 1)
+-- >>> eval $ And (B True) (Num 3)
+--- >>> eval $ Sum (Num 3) (Num 8)
+--- >>> eval $ Sum (Prod (Num 2) (Num 6)) (Num 3)
 eval :: EAB -> EAB
-eval _ = error "Implementar"
+eval e@(Sum e1 e2) = case evals e of
+                      Num n -> Num n
+                      _ -> error "La suma funciona con numeros"
 
---data Type = () -- Definir los tipos de EAB, es decir booleanos y naturales
---type Ctx = () -- Definir un sinomo para los contextos, es decir, listas de tuplas
--- necesitmos definir el contexto vacio -- 17
+eval e@(Prod e1 e2) = case evals e of
+                     Num n -> Num n
+                     _ -> error "El producto funciona con numeros"
 
-data Type = TNum | TBool deriving Show--nuestro Type solo pueden ser los dos tipos TNum y TBool
--- Num 5 :- TNat y B False :-TBool 
+eval e@(Neg e1) = case evals e of
+                   (Num n) -> Num n
+                   _ -> error "Solo funciona con numeros" 
 
-type Ctx = [(String,Type)] deriving Show-- ->  :t (("c",TNum),("x",TBool)) 7u7
---vt :: Ctx -> EAB -> Type -> Bool
---vt _ _ _ = error "Implementar"
+eval e@(Pred e1) = case evals e of
+                   (Num n) -> Num n
+                   _ -> error "Solo funciona con numeros"
+  
+eval e@(Suc e1) = case evals e of
+                   (Num n) -> Num n
+                   _ -> error "Solo funciona con numeros" 
+
+eval e@(And e1 e2) = case evals e of
+                      (B b) -> B b
+                      _ -> error "No booleano"
+
+eval e@(Or e1 e2) = case evals e of
+                    (B b) -> B b
+                    _ -> error "No booleano"
+
+eval e@(Not e1) = case evals e of
+                  (B b) -> B b
+                  _ -> error "No booleano"
+
+eval e@(Iszero e1) = case evals e of
+                  (B b) -> B b
+                  _ -> error "Unicamente numeros"
+
+eval e@(If e1 e2 e3) = case evals e of
+                      (Num n) -> Num n
+                      (B b) -> B b
+                      _ -> error "Expresion bloqueada" 
+
+eval e@(Let e1 e2) = case evals e of
+                      (Num n) -> Num n
+                      (B b) -> B b
+                      _ -> error "Expresion bloqueada" 
+eval e = e   
+
+
+data Type = TNum | TBool deriving (Show, Eq)
+
+type Ctx = [(String, Type)] 
+
+-- Ejemplos
+
+-- >>> vt [("x", TNum), ("y", TBool)] (Var "y") TNum
+-- >>> vt [] Sum (Num 4) (Num 5) TNum
+-- >>> vt [] Sum (Num 4) (B False) TNum
+-- >>> vt [("x", TNum)] Sum (Num 4) (Var "x") TNum
+-- >>> vt [] Let (Sum (Num 1) (Num 2)) (Iszero (Prod (Sum (Num 5) (Var "x")) (Sum (Num 2) (Var "x")))) TBool
+-- 
+
+vt :: Ctx -> EAB -> Type -> Bool
+vt [] (Var x) t' = False
+vt [] (Num n) TNum = True
+vt [] (B b) TBool = True
+
+vt ((v, t):xs) e@(Var x) t' | t == t' && x == v = True
+                            | otherwise = vt xs e t'
+
+vt [(v, t)] (Num n) t'@TNum = t' == t
+vt [(v, t)] (B b) t' = case t' of
+                        TBool -> True
+                        _ -> False
+
+vt g (Sum e e') t'@TNum = vt g e t' && vt g e' t' 
+vt g (Prod e e') t'@TNum = vt g e t' && vt g e' t'
+vt g (Pred e) t'@TNum = vt g e t'
+vt g (Suc e) t'@TNum = vt g e t'
+vt g (If e e' e'') t' = vt g e TBool && vt g e' t' && vt g e'' t'
+vt g (Iszero e) TBool = vt g e TNum  
+
+vt g (Let e (Abs x e2)) t' = case (vt g e TNum) of
+                              True -> vt ((x, TNum):g) e2 t'
+                              _ -> vt ((x, TBool):g) e2 t'
+
 
 evalt :: EAB -> EAB
 evalt _ = error "Implementar"
