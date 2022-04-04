@@ -4,7 +4,7 @@ module EAB where
      Equipo:
 
      * Alejandra Ortega Garcia - 420002495
-     * Oscar Ramírez Gutiérrez -
+     * Oscar Ramírez Gutiérrez - 419004283 
      * José Manuel Pedro Méndez - 31507312
 
 -}
@@ -332,6 +332,55 @@ vt g (Let e (Abs x e2)) t' = case (vt g e TNum) of
                               _ -> vt ((x, TBool):g) e2 t'
 
 
+-- >>> evalt $ Pred $ Sum (B True) (Num 1)
+-- >>> evalt $ If (Iszero $ Num 0) (Num 1) (B True) 
 
 evalt :: EAB -> EAB
-evalt _ = error "Implementar"
+evalt exp@(Sum e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
+                          (True, True) -> evals exp
+                          _ -> error "Error de tipado o por existencia de variables libres."
+evalt exp@(Prod e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
+                           (True, True) -> evals exp
+                           _ -> error "Error de tipado o por existencia de variables libres."
+evalt e@(Neg e1) = case vt [] e1 TNum of
+                     (True) -> evals e
+                     _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(Pred e1) = case vt [] e1 TNum of
+                      (True) -> evals e
+                      _ -> error "Error de tipado o por existencia de variables libres." 
+  
+evalt e@(Suc e1) = case vt [] e1 TNum of
+                     (True) -> evals e
+                     _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(And e1 e2) = case (vt [] e1 TBool, vt [] e2 TBool) of
+                        (True, True) -> evals e
+                        _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(Or e1 e2) = case (vt [] e1 TBool, vt [] e2 TBool) of
+                      (True, True) -> evals e
+                      _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(Not e1) = case vt [] e1 TBool of
+                     (True) -> evals e
+                     _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(Iszero e1) = case vt [] e1 TNum of
+                        (True) -> evals e
+                        _ -> error "Error de tipado o por existencia de variables libres." 
+
+evalt e@(If e1 e2 e3)
+  | vt [] e1 TBool &&
+    ((vt [] e2 TBool && vt [] e3 TBool) || (vt [] e2 TNum && vt [] e3 TNum)) = evals e
+  | otherwise = error "Error de tipado o por existencia de variables libres." 
+  
+-- eval e@(Let e1 abs@(Abs x e2)) 
+--   | vt [] e1 TBool = if vt [(x, TBool)] e
+--                      then evals e
+--                      else error "Error de tipado o por existencia de variables libres."
+--   | vt [] e1 TNum = if vt [(x, TNum)] e
+                      
+evalt e = e
+
+
