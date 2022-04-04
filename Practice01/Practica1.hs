@@ -334,6 +334,9 @@ vt g (Let e (Abs x e2)) t' = case (vt g e TNum) of
 
 -- >>> evalt $ Pred $ Sum (B True) (Num 1)
 -- >>> evalt $ If (Iszero $ Num 0) (Num 1) (B True) 
+-- >>> evalt $ Let (B True) (Abs "y" (And (Var "y") (B False)))
+-- >>> evalt $ Let (If (Iszero $ Num 0) (Num 1) (Num 8)) (Abs "y" (Prod (Num 7) (Var "y")))
+-- >>> evalt $ Let (B True) (Abs "y" (And (Var "y") (Num 7)))
 
 evalt :: EAB -> EAB
 evalt exp@(Sum e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
@@ -375,15 +378,14 @@ evalt e@(If e1 e2 e3)
     ((vt [] e2 TBool && vt [] e3 TBool) || (vt [] e2 TNum && vt [] e3 TNum)) = evals e
   | otherwise = error "Error de tipado o por existencia de variables libres." 
   
-eval e@(Let e1 abs@(Abs x e2)) 
+evalt e@(Let e1 abs@(Abs x e2)) 
   | vt [] e1 TBool = if vt [(x, TBool)] e TBool || vt [(x, TBool)] e TNum
                      then evals e
                      else error "Error de tipado o por existencia de variables libres."
   | vt [] e1 TNum = if vt [(x, TNum)] e TBool || vt [(x, TNum)] e TNum
                     then evals e
                     else error "Error de tipado o por existencia de variables libres."
-evalt e = error "Error de sintaxis."   
-                      
+  | otherwise = error "Error de tipado o por existencia de variables libres."
 
 
 
