@@ -375,12 +375,15 @@ evalt e@(If e1 e2 e3)
     ((vt [] e2 TBool && vt [] e3 TBool) || (vt [] e2 TNum && vt [] e3 TNum)) = evals e
   | otherwise = error "Error de tipado o por existencia de variables libres." 
   
--- eval e@(Let e1 abs@(Abs x e2)) 
---   | vt [] e1 TBool = if vt [(x, TBool)] e
---                      then evals e
---                      else error "Error de tipado o por existencia de variables libres."
---   | vt [] e1 TNum = if vt [(x, TNum)] e
+eval e@(Let e1 abs@(Abs x e2)) 
+  | vt [] e1 TBool = if vt [(x, TBool)] e TBool || vt [(x, TBool)] e TNum
+                     then evals e
+                     else error "Error de tipado o por existencia de variables libres."
+  | vt [] e1 TNum = if vt [(x, TNum)] e TBool || vt [(x, TNum)] e TNum
+                    then evals e
+                    else error "Error de tipado o por existencia de variables libres."
+evalt e = error "Error de sintaxis."   
                       
-evalt e = e
+
 
 
