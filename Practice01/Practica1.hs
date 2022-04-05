@@ -10,6 +10,7 @@ module EAB where
 
 -}
 
+
 data EAB = Var String 
          | Num Int 
          | B Bool 
@@ -256,39 +257,39 @@ evals e = e
 eval :: EAB -> EAB
 eval e@(Sum e1 e2) = case evals e of
                       Num n -> Num n
-                      _ -> error "La suma funciona con numeros"
+                      _ -> error "La suma funciona con numeros (Num)"
 
 eval e@(Prod e1 e2) = case evals e of
                      Num n -> Num n
-                     _ -> error "El producto funciona con numeros"
+                     _ -> error "El producto funciona con numeros (Num)"
 
 eval e@(Neg e1) = case evals e of
                    (Num n) -> Num n
-                   _ -> error "Solo funciona con numeros" 
+                   _ -> error "Neg solo funciona con numeros (Num)" 
 
 eval e@(Pred e1) = case evals e of
                    (Num n) -> Num n
-                   _ -> error "Solo funciona con numeros"
+                   _ -> error "Pred solo funciona con numeros (Num)"
   
 eval e@(Suc e1) = case evals e of
                    (Num n) -> Num n
-                   _ -> error "Solo funciona con numeros" 
+                   _ -> error "Suc solo funciona con numeros (Num)" 
 
 eval e@(And e1 e2) = case evals e of
                       (B b) -> B b
-                      _ -> error "No booleano"
+                      _ -> error "And solo funciona con booleanos (B)" 
 
 eval e@(Or e1 e2) = case evals e of
                     (B b) -> B b
-                    _ -> error "No booleano"
+                    _ -> error "Or solo funciona con booleanos (B)" 
 
 eval e@(Not e1) = case evals e of
                   (B b) -> B b
-                  _ -> error "No booleano"
+                  _ -> error "Not solo funciona con booleanos (B)" 
 
 eval e@(Iszero e1) = case evals e of
                   (B b) -> B b
-                  _ -> error "Unicamente numeros"
+                  _ -> error "Iszero solo funciona con booleanos (B)" 
 
 eval e@(If e1 e2 e3) = case evals e of
                       (Num n) -> Num n
@@ -297,11 +298,11 @@ eval e@(If e1 e2 e3) = case evals e of
 
 eval e@(Gt e1 e2) = case evals e of
                       (B b) -> B b
-                      _ -> error "Unicamente numeros"
+                      _ -> error "Gt solo funciona con numeros (Num)"
 
 eval e@(Lt e1 e2) = case evals e of
                       (B b) -> B b
-                      _ -> error "Unicamente numeros"
+                      _ -> error "Lt solo funciona con numeros (Num)"
 
 eval e@(Let e1 e2) = case evals e of
                       (Num n) -> Num n
