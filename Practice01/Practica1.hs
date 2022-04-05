@@ -1,4 +1,5 @@
 module EAB where
+
 {- | Practica 01
      
      Equipo:
@@ -8,6 +9,7 @@ module EAB where
      * José Manuel Pedro Méndez - 31507312
 
 -}
+
 data EAB = Var String 
          | Num Int 
          | B Bool 
@@ -22,8 +24,9 @@ data EAB = Var String
          | Iszero EAB 
          | If EAB EAB EAB
          | Let EAB EAB
+         | Gt EAB EAB
+         | Lt EAB EAB
          | MatchNat EAB EAB EAB
-         | GT EAB EAB
          | Abs String EAB  
          deriving (Show)
 
@@ -35,6 +38,10 @@ data EAB = Var String
 
 -- Ejemplo LET
 -- >>> eval1 Let (Sum (Var "x") (Num 3)) (Abs ("x") (Sum (Var "x") (Num 5)))
+-- >>> eval1 (MatchNat (Sum (Num 2) (Num 3)) (Num 0) (Abs ("x") (Sum (Var "x") (Num 5)))
+-- >>> eval1 (MatchNat (Pred (Sum (Num 7) (Num 5))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3))))
+-- >>> eval1 Gt (Num 3) (Num 0)
+-- >>> eval1 Lt (Neg (Num 2)) (Num 0)
 --  
 
 eval1 :: EAB -> EAB
@@ -91,6 +98,20 @@ eval1 (Let e1 all@(Abs x e2)) = case e1 of
                       (B b) -> subs e2 (x, e1)
                       (e) -> Let (eval1 e) all
 
+eval1 (Gt e1 e2) = case (e1,e2) of
+                     (Num n, Num m) -> B (n > m)
+                     (Num n, e) -> Gt (Num n) (eval1 e)
+                     (_,_) -> Gt (eval1 e1) e2
+
+eval1 (Lt e1 e2) = case (e1,e2) of
+                     (Num n, Num m) -> B (n < m)
+                     (Num n, e) -> (Lt (Num n) (eval1 e))
+                     (_,_) -> (Lt (eval1 e1) e2)
+
+eval1 (MatchNat e1 e2 all@(Abs x e3)) = case e1 of
+                                          (Num n) -> subs e3 (x, (Num (n - 1)))
+                                          (e) -> MatchNat (eval1 e1) e2 all
+
 eval1 e = e
 
 type Subst = (String, EAB) -- [x:=e]
@@ -110,6 +131,9 @@ subs (Not e) s = Not (subs e s)
 subs (Iszero e) s = Iszero (subs e s)
 subs (If e1 e2 e3) s = If (subs e1 s) (subs e2 s) (subs e3 s)
 subs (Let e1 e2) s = Let (subs e1 s) (subs e2 s)
+subs (Gt e1 e2) s = Gt (subs e1 s) (subs e2 s)
+subs (Lt e1 e2) s = Lt (subs e1 s) (subs e2 s) 
+subs (MatchNat e1 e2 e3) s = MatchNat (subs e1 s) (subs e2 s) (subs e3 s)
 
 subs (Abs z e) s@(x,r)
   | z == x || elem z (fv r) = error "No se puede aplicar la substitución"
@@ -145,6 +169,9 @@ fv (Abs x e) = filter (/= x) (fv e)
 -- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (Num 7)))
 -- >>> evals $ Let (Sum (Num 3) (B True)) (Abs "x" (Prod (Var "x") (Num 7)))
 -- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (B True)))
+-- >>> evals (MatchNat (Pred (Sum (Num 7) (Num 5))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3))))
+-- >>> evals Gt (B False) (Num 0)
+-- >>> evals Lt (Neg (Num 2)) (Num 0)
 -- 
 evals :: EAB -> EAB
 evals (Sum e1 e2) = case (evals e1, evals e2) of
@@ -188,26 +215,43 @@ evals (If e1 e2 e3) = case evals e1 of
                         (B (False)) -> evals $ e3
                         e -> If e e2 e3
 
+evals (Gt e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> B (n > m)
+                     (e1,e2) -> Gt e1 e2
+
+evals (Lt e1 e2) = case (evals e1, evals e2) of
+                     (Num n, Num m) -> B (n < m)
+                     (e1,e2) -> Lt e1 e2
+
 evals (Let e1 all@(Abs x e2)) = case evals e1 of
                       (Num n) -> evals $ subs e2 (x, (Num n))
                       (B b) -> evals $ subs e2 (x, (B b))
-                      e -> Let e all 
+                      e -> Let e all
+
+evals (MatchNat e1 e2 all@(Abs x e3)) = 
+  case (evals e1) of
+    (Num n) -> if n == 0 then evals e2 else evals $ subs e3 (x, (Num (n - 1)))
+    (e) -> MatchNat e1 e2 all
+
 evals e = e
 
 -- Ejemplos
 
 -- >>> eval $ Sum (B True) (Num 1)
--- >>> evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Num 6))
--- >>> evals $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Sum (Num 8) (Num 9)))
+-- >>> eval $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Num 6))
+-- >>> eval $ Sum (Sum (Num 3) (Num 4)) (Sum (Num 5) (Sum (Num 8) (Num 9)))
 
--- >>> evals $ Pred $ And (B True) (B False)
+-- >>> eval $ Pred $ And (B True) (B False)
 
--- >>> evals $ If (Sum (Num 4) (Num 6)) (Num 4) (Num 7)
--- >>> evals $ If (Iszero (Num 0)) (Num 5) (Num 7)
+-- >>> eval $ If (Sum (Num 4) (Num 6)) (Num 4) (Num 7)
+-- >>> eval $ If (Iszero (Num 0)) (Num 5) (Num 7)
 
--- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (Num 7)))
--- >>> evals $ Let (Sum (Num 3) (B True)) (Abs "x" (Prod (Var "x") (Num 7)))
--- >>> evals $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (B True)))
+-- >>> eval $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (Num 7)))
+-- >>> eval $ Let (Sum (Num 3) (B True)) (Abs "x" (Prod (Var "x") (Num 7)))
+-- >>> eval $ Let (Sum (Num 3) (Num 4)) (Abs "x" (Prod (Var "x") (B True)))
+-- >>> eval (MatchNat (Pred (Sum (Num 7) (B True))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3))))
+-- >>> eval Gt (B False) (Num 0)
+-- >>> eval Lt (Neg (Num 2)) (Num 0)
 --
 eval :: EAB -> EAB
 eval e@(Sum e1 e2) = case evals e of
@@ -249,12 +293,25 @@ eval e@(Iszero e1) = case evals e of
 eval e@(If e1 e2 e3) = case evals e of
                       (Num n) -> Num n
                       (B b) -> B b
-                      _ -> error "Expresion bloqueada" 
+                      _ -> error "Expresion bloqueada"
+
+eval e@(Gt e1 e2) = case evals e of
+                      (B b) -> B b
+                      _ -> error "Unicamente numeros"
+
+eval e@(Lt e1 e2) = case evals e of
+                      (B b) -> B b
+                      _ -> error "Unicamente numeros"
 
 eval e@(Let e1 e2) = case evals e of
                       (Num n) -> Num n
                       (B b) -> B b
                       _ -> error "Expresion bloqueada" 
+
+eval e@(MatchNat e1 e2 e3) = case evals e of
+                              (Num n) -> Num n
+                              (B b) -> B b
+                              _ -> error "Expresion bloqueada" 
 eval e = e   
 
 
@@ -271,6 +328,8 @@ type Ctx = [(String, Type)]
 -- >>> vt [("x", TNum)] (Sum (Num 4) (Var "x")) TNum
 -- >>> vt [] (If (B False) (Num 4) (Num 5)) (TNum)
 -- >>> vt [] (Let (Num 1) (Abs ("x") (Sum (Var "x") (Num 1)))) (TNum)
+-- >>> vt [] (Let (Num 0) (Abs ("x") (Iszero (Var "x"))) (TBool)
+-- >>> vt [] (MatchNat (Pred (Sum (Num 7) (B True))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3)))) (TNum)
 --
 vt :: Ctx -> EAB -> Type -> Bool
 vt [] (Var x) t' = False
@@ -325,11 +384,21 @@ vt g (If e1 e2 e3) t = case (vt g e1 TBool) of
                         True -> vt g e2 t && vt g e3 t
                         _ -> False
 
+vt g (Gt e1 e2) t = case t of 
+                      TBool -> vt g e1 TNum && vt g e2 TNum
+                      _ -> False
 
+vt g (Lt e1 e2) t = case t of 
+                      TBool -> vt g e1 TNum && vt g e2 TNum
+                      _ -> False
  
 vt g (Let e (Abs x e2)) t' = case (vt g e TNum) of
                               True -> vt ((x, TNum):g) e2 t'
                               _ -> vt ((x, TBool):g) e2 t'
+
+vt g (MatchNat e1 e2 (Abs x e3)) t' = case (vt g e1 TNum) of
+                                        True -> vt ((x, TNum):g) e3 t'
+                                        _ -> vt ((x, TBool):g) e2 t'
 
 
 -- >>> evalt $ Pred $ Sum (B True) (Num 1)
@@ -337,6 +406,7 @@ vt g (Let e (Abs x e2)) t' = case (vt g e TNum) of
 -- >>> evalt $ Let (B True) (Abs "y" (And (Var "y") (B False)))
 -- >>> evalt $ Let (If (Iszero $ Num 0) (Num 1) (Num 8)) (Abs "y" (Prod (Num 7) (Var "y")))
 -- >>> evalt $ Let (B True) (Abs "y" (And (Var "y") (Num 7)))
+-- >>> evalt $ MatchNat (Pred (Sum (Num 7) (B True))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3))) 
 
 evalt :: EAB -> EAB
 evalt exp@(Sum e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
@@ -371,7 +441,15 @@ evalt e@(Not e1) = case vt [] e1 TBool of
 
 evalt e@(Iszero e1) = case vt [] e1 TNum of
                         (True) -> evals e
-                        _ -> error "Error de tipado o por existencia de variables libres." 
+                        _ -> error "Error de tipado o por existencia de variables libres."
+
+evalt e@(Gt e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
+                           (True, True) -> evals e
+                           _ -> error "Error de tipado o por existencia de variables libres."
+
+evalt e@(Lt e1 e2) = case (vt [] e1 TNum, vt [] e2 TNum) of
+                           (True, True) -> evals e
+                           _ -> error "Error de tipado o por existencia de variables libres."  
 
 evalt e@(If e1 e2 e3)
   | vt [] e1 TBool &&
@@ -387,5 +465,9 @@ evalt e@(Let e1 abs@(Abs x e2))
                     else error "Error de tipado o por existencia de variables libres."
   | otherwise = error "Error de tipado o por existencia de variables libres."
 
-
+evalt e@(MatchNat e1 e2 (Abs x e3)) 
+  | vt [] e1 TNum = if vt [(x, TNum)] e TBool || vt [(x, TNum)] e TNum
+                    then evals e
+                    else error "Error de tipado o por existencia de variables libres."
+  | otherwise = error "Error de tipado o por existencia de variables libres."
 
