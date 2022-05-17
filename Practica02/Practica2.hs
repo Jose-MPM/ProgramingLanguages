@@ -20,13 +20,9 @@ data Expr = V Identifier -- variable
           | Gt Expr Expr -- mayor que
           | If Expr Expr Expr
           | Let Identifier Expr Expr
-          | Fn Identifier Expr -- fun  f 
+          | Fn Identifier Expr -- funciones anonimas  
           | App Expr Expr -- e1 e2
            deriving (Show, Eq)
-
-
-
-
 
 -- | Gramatica para los tipos
 -- T identifier ---> T
@@ -88,4 +84,27 @@ minFrom a (n,xs)
  where (us, vs) = partition (< b) xs
        b = a + 1 + div n 2
        m = length us
+
+-- | Obtiene el conjunto de restricciones
+--   para la expresión
+rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
+
+
+-- | Definimos el tipo sustitución
+type Substitution = [(IdentifierT, Type)]
+
+-- | Dado un tipo y una sustitución, regresa la
+-- aplicion de la sustitucion al tipo
+subst :: Type → Substitution -> Type
+
+-- | Realiza la composición de dos sustituciones 
+comp :: Substitution -> Substitution -> Substitution
+
+-- | Intenta unificar las restricciones, regresa el
+--   unificador más general
+unif :: Constraint -> Substitution
+
+-- | Dada una expresión infiere su tipo devolviendo el
+--   contexto donde es valido.
+infer :: Constraint -> Substitution
 
