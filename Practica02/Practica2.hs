@@ -1,15 +1,11 @@
 module Sintax where
 
+import Data.List
+
 type Identifier = String
     
-
-{--
- -- Sintaxis Practica1
- -- Para su Practica 2 deben modificar esto (es lo unico que necesitan de su P1)
- -- Agregar y eliminar las cosas que sean necesarias segun la descripcion que se
- -- dio en la especificacionde la practica.
- --}
-data Expr = V Identifier
+-- | Definicion de las expresiones de MinHs
+data Expr = V Identifier -- variable
           | I Int
           | B Bool
           | Succ Expr
@@ -20,8 +16,8 @@ data Expr = V Identifier
           | Iszero Expr
           | And Expr Expr
           | Or Expr Expr 
-          | Lt Expr Expr
-          | Gt Expr Expr
+          | Lt Expr Expr -- menor que
+          | Gt Expr Expr -- mayor que
           | If Expr Expr Expr
           | Let Identifier Expr Expr
           | Fn Identifier Expr -- fun  f 
@@ -30,31 +26,41 @@ data Expr = V Identifier
 
 
 
-{-
 
-Gramatica para los tipos
 
-T identifier ---> T
-Arrow Type Type ---> T -> T
+-- |Gramatica para los tipos
+-- T identifier ---> T
+-- Arrow Type Type ---> T -> T
 
--}
 type IdentifierT = Int
 
 data Type = T IdentifierT
           | Integer | Boolean
           | Arrow Type Type
+          deriving (Show, Eq)
           
-{-
-Contexto de tipado
-variable : Tipo
-x: T
--} 
+
+-- | Definicion del tipo Contexto de tipado
+-- variable : Tipo
+-- x: T
 
 type Ctxt = [(Identifier, Type)]
 
-{-
-Restriccion
-Tipo = Tipo
-T = S
--} 
+-- | Definicion del tipo Restriccion
+-- Tipo = Tipo
+-- T = S
+
 type Constraint = [(Type, Type)]
+
+
+-- | Regresa las variables de tipo de un tipo. 
+-- Ejemplos
+-- >>> tvars $ Arrow (T 1) (T 2)
+-- >>> tvars $ Arrow (Arrow (T 1) (T 2)) (T 2)
+-- >>> tvars $ Arrow Boolean Boolean
+
+tvars :: Type -> [IdentifierT]
+tvars (T identifierT) = [identifierT]
+tvars (Integer) = []
+tvars (Boolean) = []
+tvars (Arrow t1 t2) = nub $ (tvars t1) ++ (tvars t2)  
