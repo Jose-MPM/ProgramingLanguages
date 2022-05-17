@@ -28,7 +28,7 @@ data Expr = V Identifier -- variable
 
 
 
--- |Gramatica para los tipos
+-- | Gramatica para los tipos
 -- T identifier ---> T
 -- Arrow Type Type ---> T -> T
 
@@ -64,3 +64,28 @@ tvars (T identifierT) = [identifierT]
 tvars (Integer) = []
 tvars (Boolean) = []
 tvars (Arrow t1 t2) = nub $ (tvars t1) ++ (tvars t2)  
+
+
+-- | Obtiene una variable de tipo fresca
+-- Ejemplos
+-- >>> fresh [T 0, T 1, T 2, T 3]
+-- >>> fresh [T 0, T 1, T 3, T 4]
+
+fresh :: [Type] -> Type
+fresh xs = T $ minFree $ (fresh' xs)
+
+fresh' :: [Type] -> [Int]
+fresh' xs = concat $ map (tvars) xs
+
+minFree :: [Int] -> Int
+minFree xs = minFrom 0 (length xs,xs)
+
+minFrom :: Int -> (Int,[Int]) -> Int
+minFrom a (n,xs)
+ | n == 0     = a
+ | m == b-a   = minFrom b (n - m, vs)
+ | otherwise  = minFrom a (m, us)
+ where (us, vs) = partition (< b) xs
+       b = a + 1 + div n 2
+       m = length us
+
