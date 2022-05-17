@@ -88,23 +88,34 @@ minFrom a (n,xs)
 -- | Obtiene el conjunto de restricciones
 --   para la expresión
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
-
+rest _ = error "implementar"
 
 -- | Definimos el tipo sustitución
 type Substitution = [(IdentifierT, Type)]
 
 -- | Dado un tipo y una sustitución, regresa la
 -- aplicion de la sustitucion al tipo
-subst :: Type → Substitution -> Type
+-- Ejemplos
+-- >>> subst (Arrow (T 1) (T 2)) [(2, Arrow (T 2) (T 3))]
+subst :: Type -> Substitution -> Type
+subst t [] = t  
+subst (T n) ((id,t):xs) = if n == id
+                         then subst t xs
+                         else subst (T n) xs
+subst (Arrow t1 t2) xs = Arrow (subst t1 xs) (subst t2 xs)
+subst t _ = t
 
 -- | Realiza la composición de dos sustituciones 
 comp :: Substitution -> Substitution -> Substitution
+comp s1 s2 = ((map (\x -> (fst x, subst (snd x) s2 )) s1) ++ s2)
+
 
 -- | Intenta unificar las restricciones, regresa el
 --   unificador más general
 unif :: Constraint -> Substitution
+unif _ = error "implementar"
 
 -- | Dada una expresión infiere su tipo devolviendo el
 --   contexto donde es valido.
 infer :: Constraint -> Substitution
-
+infer _ = error "implementar"
