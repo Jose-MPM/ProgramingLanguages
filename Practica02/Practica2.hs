@@ -19,7 +19,7 @@ data Expr = V Identifier -- variable
           | Lt Expr Expr -- menor que
           | Gt Expr Expr -- mayor que
           | If Expr Expr Expr
-          | Let Identifier Expr Expr
+          | Let Expr Expr
           | Fn Identifier Expr -- funciones anonimas  
           | App Expr Expr -- e1 e2
            deriving (Show, Eq)
@@ -38,7 +38,7 @@ data Type = T IdentifierT
 instance Show Type where
     show e = case e of
         (T i) -> "T" ++ (show i)
-        (Arrow e1 e2) -> show e1 ++ "→" ++ show e2
+        (Arrow e1 e2) -> show e1 ++ " → " ++ show e2
         Integer -> "Int"
         Boolean -> "Bool"
 
@@ -91,23 +91,34 @@ minFrom a (n,xs)
        b = a + 1 + div n 2
        m = length us
 
+findT :: Identifier -> Ctxt -> Maybe Type
+findT _ [] = Nothing
+findT x ((y, t): ys) = if x == y 
+                       then Just t
+                       else findT x ys
+
 -- | Dada una expresión infiere su tipo
 -- | Obtiene el conjunto de restricciones
 --   para la expresión
--- rest ([], (Add (Var "y") (Var "x")))
+-- Ejemplos
+-- >>> rest ([], (Add (V "x") (V "x")))
+-- >>> rest ([], Fn "x" (V "x"))
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
 rest (xs, V x) = (fresh xs:xs, [(x, fresh xs)], fresh xs, [])
 rest (xs, I n) = (Integer:xs, [], Integer, [])
 rest (xs, B b) = (Boolean:xs, [], Boolean, [])
-rest (t, Succ e) = let (t2, c, tp, r) = rest (t, e)
-                       rf = r ++ [(tp, Integer)]
-                     in  (t2, c, Integer, rf)
-rest (t, Pred e) = let (t2, c, tp, r) = rest (t, e)
-                       rf = r ++ [(tp, Integer)]
+rest (xs, Succ e) = let (t2, c, tp, r) = rest (xs, e)
+                        rf = r ++ [(tp, Integer)]
+                     in (t2, c, Integer, rf)
+rest (xs, Pred e) = let (t2, c, tp, r) = rest (xs, e)
+                        rf = r ++ [(tp, Integer)]
                    in (t2, c, Integer, rf)
-rest (t, Not e) = let (t2, c, tp, r) = rest (t, e)        
-                      rf = r ++ [(tp, Boolean)]
-                  in (t2, c, Boolean, rf)
+rest (xs, Iszero e) = let (t2, c, tp, r) = rest (xs, e)
+                          rf = r ++ [(tp, Boolean)]
+                        in (t2, c, Boolean, rf)
+rest (xs, Not e) = let (t2, c, tp, r) = rest (xs, e)        
+                       rf = r ++ [(tp, Boolean)]
+                     in (t2, c, Boolean, rf)
 rest (xs, Add e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
                            (t2, c2, tp2, r2) = rest (t1, e2)
                            rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
@@ -132,7 +143,54 @@ rest (xs, Or e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
                           c =  c1 ++ c2
                           rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
                         in (t2, c, Boolean, rf)
-rest e = error "Falta implementar"
+rest (xs, Lt e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                          (t2, c2, tp2, r2) =  rest (t1, e2)
+                          rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                          c =  c1 ++ c2
+                          rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
+                        in (t2, c, Boolean, rf) 
+rest (xs, Gt e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                          (t2, c2, tp2, r2) =  rest (t1, e2)
+                          rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                          c =  c1 ++ c2
+                          rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
+                        in (t2, c, Boolean, rf)
+rest (xs, Fn x e) = let (t2, c, tp, r) = rest (xs, e)
+                      in case findT x c of
+                        Just tpA -> (t2,  c \\ [(x, tpA)] , Arrow tpA tp, r)
+                        Nothing -> let tpA = fresh t2 
+                                   in (t2 `union` [tpA], c, Arrow tpA tp, r)
+rest (xs, If e1 e2 e3) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                             (t2, c2, tp2, r2) = rest (t1, e2)
+                             (t3, c3, tp3, r3) = rest (t2, e3) 
+                             s21 = [(s2, s3)|(x, s2) <- c2, (y, s3) <- c1, x == y] -- c2 Ctxt del tipo de la inferencia de tipo de e2 con t1
+                             s23 = [(s2, s3)|(x, s2) <- c2, (y, s3) <- c3, x == y] -- mas restricciones
+                             s13 = [(s2, s3)|(x, s2) <- c1, (y, s3) <- c3, x == y]                             
+                             ri = r1 ++ r2 ++ r3
+                             si = s21 ++ s23 ++ s13
+                             r = ri `union` si
+                             rf = r ++ [(tp2, tp3), (tp1, Boolean)]
+                            in (t3, c1 `union` c2 `union` c3, tp1, r)
+rest (xs, Let (Fn x e1) e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                                  (t2, c2, tp2, r2) = rest (t1, e2)
+                                  s = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                                  r = r1 `union` r2 `union` s -- union por si afecta(REPETICIONES)usar ++
+                                in case findT x c2 of 
+                                    Just tx -> let r' = r ++ [(tp1,tx)]
+                                                   c = (c1 `union` c2) \\  [(x,tx)]
+                                                in (t2, c, tp2, r')
+                                    Nothing -> let newX = fresh t2
+                                                   tF = t2 ++ [newX]
+                                                   rF = r `union` [(tp1,newX)]
+                                                  in (tF, c1 `union` c2, tp2, rF)
+rest (t, App e1 e2) = let (t1, c1, tp1, r1) = rest (t, e1)
+                          (t2, c2, tp2, r2) = rest (t1, e2)
+                          s = [(s1, s2) | (x, s1) <- c1, (y, s2) <- c2, x == y]
+                          newX = fresh t2
+                          t' = t2 `union` [newX]
+                          r = r1 ++ r2 ++ s ++ [(tp1 , Arrow tp2 newX)]
+                      in (t', c1 `union` c2, newX, r)
+-- rest e = error "Falta implementar"
 
 -- | Definimos el tipo sustitución
 type Substitution = [(IdentifierT, Type)]
