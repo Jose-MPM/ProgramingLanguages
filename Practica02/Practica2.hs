@@ -33,8 +33,14 @@ type IdentifierT = Int
 data Type = T IdentifierT
           | Integer | Boolean
           | Arrow Type Type
-          deriving (Show, Eq)
-          
+          deriving (Eq)
+
+instance Show Type where
+    show e = case e of
+        (T i) -> "T" ++ (show i)
+        (Arrow e1 e2) -> show e1 ++ "→" ++ show e2
+        Integer -> "Int"
+        Boolean -> "Bool"
 
 -- | Definicion del tipo Contexto de tipado
 -- variable : Tipo
@@ -90,6 +96,7 @@ minFrom a (n,xs)
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
 rest _ = error "implementar"
 
+
 -- | Definimos el tipo sustitución
 type Substitution = [(IdentifierT, Type)]
 
@@ -97,23 +104,56 @@ type Substitution = [(IdentifierT, Type)]
 -- aplicion de la sustitucion al tipo
 -- Ejemplos
 -- >>> subst (Arrow (T 1) (T 2)) [(2, Arrow (T 2) (T 3))]
+-- >>> subst (Arrow (T 1) (Arrow (T 2) (T 1))) [(1, T 2), (2, T 3)]
 subst :: Type -> Substitution -> Type
 subst t [] = t  
-subst (T n) ((id,t):xs) = if n == id
-                         then subst t xs
-                         else subst (T n) xs
+subst (T n) ((i,tipo):xs) = if n == i
+                            then subst tipo xs
+                            else subst (T n) xs
 subst (Arrow t1 t2) xs = Arrow (subst t1 xs) (subst t2 xs)
 subst t _ = t
 
--- | Realiza la composición de dos sustituciones 
+-- | Realiza la composición de dos sustituciones
+-- 
 comp :: Substitution -> Substitution -> Substitution
-comp s1 s2 = ((map (\x -> (fst x, subst (snd x) s2 )) s1) ++ s2)
+comp s1 s2 = noDup $ ((map (\x -> (fst x, subst (snd x) s2 )) s1) ++ s2)
+
+noDup :: (Eq a) => [(a,b)] -> [(a,b)]
+noDup (x:xs) = x : noDup (filter (\y-> (fst y) /= (fst x)) xs)
+noDup [] = []
 
 
 -- | Intenta unificar las restricciones, regresa el
 --   unificador más general
+--Ejemplos de la nota 7
+-- Ejemplo 3.1 Sí se unifica
+-- >>> unif [(Arrow (T 1) (T 2), Arrow (Arrow (T 3) (T 4)) (T 5))]
+-- Ejemplo 3.2 No se unifica
+-- >>> unif [(T 1, Arrow (T 2) (T 3)), (T 1, T 2)]
 unif :: Constraint -> Substitution
-unif _ = error "implementar"
+unif [] = []
+unif ((t1, t2):xs)
+  | t1 == t2 = unif(xs)
+  | otherwise = case (t1, t2) of
+                  (Integer, Boolean) -> error "Fail"
+                  (Boolean, Integer) -> error "Fail"
+                  (T idT, tipo) -> if idT `elem` (tvars tipo)
+                                then error "Fail, no se puede unificar" -- no vamos a poder sustituir cosas del tipo X = U - Z 
+                                else comp unificacion sustitucion
+                                     where sustitucion = [(idT, tipo)]
+                                           unificacion = unif $ substC xs sustitucion
+                                     
+                  (tipo, T idT) -> unif $ (T idT, tipo):xs
+                  (Arrow t1 t2, Arrow s1 s2) -> unif $ [(t1, s1), (t2, s2)] ++ xs
+
+substC :: Constraint -> Substitution -> Constraint
+substC [] _ = []
+substC ((t1,t2):cs) s = (subst t1 s, subst t2 s): (substC cs s) 
+                                     
+                                    
+                                    
+
+
 
 -- | Dada una expresión infiere su tipo devolviendo el
 --   contexto donde es valido.
