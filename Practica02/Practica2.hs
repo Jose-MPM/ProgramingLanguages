@@ -91,11 +91,47 @@ minFrom a (n,xs)
        b = a + 1 + div n 2
        m = length us
 
+-- | Dada una expresión infiere su tipo
 -- | Obtiene el conjunto de restricciones
 --   para la expresión
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
-rest _ = error "implementar"
-
+rest (xs, Var x) = (fresh xs:xs, [(x, fresh xs)], fresh xs, [])
+rest (xs, Num n) = (Integer:xs, [], Integer, [])
+rest (xs, B b) = (Boolean:xs, [], Boolean, [])
+rest (t, Suc e) = let (t2, c, tp, r) = rest (t, e)
+                      rf = r ++ [(tp, Integer)]
+                  in (t2, c, Integer, rf)
+rest (t, Pred e) = let (t2, c, tp, r) = rest (t, e)
+                      rf = r ++ [(tp, Integer)]
+                  in (t2, c, Integer, rf)
+rest (t, Not e) = let (t2, c, tp, r) = rest (t, e)
+                      rf = r ++ [(tp, Boolean)]
+                  in (t2, c, Boolean, rf)
+rest (xs, Add e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                           (t2, c2, tp2, r2) = rest (t1, e2)
+                           rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                           c =  c1 ++ c2
+                           rf = r1 ++ r2 ++ rs ++ [(tp1, Integer), (tp2, Integer)]
+                        in (t2, c, Integer, rf)
+rest (xs, Prod e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                           (t2, c2, tp2, r2) = rest (t1, e2)
+                           rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                           c =  c1 ++ c2
+                           rf = r1 ++ r2 ++ rs ++ [(tp1, Integer), (tp2, Integer)]
+                        in (t2, c, Integer, rf)
+rest (xs, And e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                           (t2, c2, tp2, r2) =  rest (t1, e2)
+                           rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                           c =  c1 ++ c2
+                           rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
+                        in (t2, c, Boolean, rf)
+rest (xs, Or e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                           (t2, c2, tp2, r2) =  rest (t1, e2)
+                           rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                           c =  c1 ++ c2
+                           rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
+                        in (t2, c, Boolean, rf)
+rest e = error "Falta implementar"
 
 -- | Definimos el tipo sustitución
 type Substitution = [(IdentifierT, Type)]
