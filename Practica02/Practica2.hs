@@ -18,6 +18,7 @@ data Expr = V Identifier -- variable
           | Or Expr Expr 
           | Lt Expr Expr -- menor que
           | Gt Expr Expr -- mayor que
+          | Eq Expr Expr
           | If Expr Expr Expr
           | Let Expr Expr
           | Fn Identifier Expr -- funciones anonimas  
@@ -103,10 +104,18 @@ findT x ((y, t): ys) = if x == y
 -- Ejemplos
 -- >>> rest ([], (Add (V "x") (V "x")))
 -- >>> rest ([], Fn "x" (V "x"))
+-- b = (Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
+--- >>> rest([],b)
+--- >>> rest([],Add (I 5) (I 9))
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
 rest (xs, V x) = (fresh xs:xs, [(x, fresh xs)], fresh xs, [])
 rest (xs, I n) = (Integer:xs, [], Integer, [])
 rest (xs, B b) = (Boolean:xs, [], Boolean, [])
+rest (xs, Fn x e) = let (t2, c, tp, r) = rest (xs, e)
+                      in case findT x c of
+                        Just tpA -> (t2,  c \\ [(x, tpA)] , Arrow tpA tp, r)
+                        Nothing -> let tpA = fresh t2 
+                                   in (t2 `union` [tpA], c, Arrow tpA tp, r)
 rest (xs, Succ e) = let (t2, c, tp, r) = rest (xs, e)
                         rf = r ++ [(tp, Integer)]
                      in (t2, c, Integer, rf)
@@ -155,11 +164,12 @@ rest (xs, Gt e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
                           c =  c1 ++ c2
                           rf = r1 ++ r2 ++ rs ++ [(tp1, Boolean), (tp2, Boolean)]
                         in (t2, c, Boolean, rf)
-rest (xs, Fn x e) = let (t2, c, tp, r) = rest (xs, e)
-                      in case findT x c of
-                        Just tpA -> (t2,  c \\ [(x, tpA)] , Arrow tpA tp, r)
-                        Nothing -> let tpA = fresh t2 
-                                   in (t2 `union` [tpA], c, Arrow tpA tp, r)
+rest (xs, Eq e1 e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+                          (t2, c2, tp2, r2) =  rest (t1, e2)
+                          rs = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
+                          c =  c1 ++ c2
+                          rf = r1 `union` r2 `union` rs `union` [(tp1, Boolean), (tp2, Boolean)]
+                        in (t2, c, Boolean, rf)
 rest (xs, If e1 e2 e3) = let (t1, c1, tp1, r1) = rest (xs, e1)
                              (t2, c2, tp2, r2) = rest (t1, e2)
                              (t3, c3, tp3, r3) = rest (t2, e3) 
@@ -171,7 +181,7 @@ rest (xs, If e1 e2 e3) = let (t1, c1, tp1, r1) = rest (xs, e1)
                              r = ri `union` si
                              rf = r ++ [(tp2, tp3), (tp1, Boolean)]
                             in (t3, c1 `union` c2 `union` c3, tp1, r)
-rest (xs, Let (Fn x e1) e2) = let (t1, c1, tp1, r1) = rest (xs, e1)
+rest (xs, Let e1 (Fn x e2)) = let (t1, c1, tp1, r1) = rest (xs, e1)
                                   (t2, c2, tp2, r2) = rest (t1, e2)
                                   s = [(s1, s2)|(x, s1) <- c1, (y, s2) <- c2, x == y]
                                   r = r1 `union` r2 `union` s -- union por si afecta(REPETICIONES)usar ++
@@ -244,13 +254,20 @@ unif ((t1, t2):xs)
 substC :: Constraint -> Substitution -> Constraint
 substC [] _ = []
 substC ((t1,t2):cs) s = (subst t1 s, subst t2 s): (substC cs s) 
-                                     
-                                    
-                                    
-
 
 
 -- | Dada una expresión infiere su tipo devolviendo el
 --   contexto donde es valido.
-infer :: Constraint -> Substitution
-infer _ = error "implementar"
+-- infer (Add (I 5) (I 9))
+-- infer con falla con:
+-- (Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
+
+infer :: Expr -> (Ctxt, Type)
+infer e = let (_, c, tp, r) = rest ([], e)
+              mgu = unif r
+          in (ctxtS c mgu, subst tp mgu)
+
+-- Función auxiliar para aplicar una sustitución a un contexto.
+ctxtS :: Ctxt -> Substitution-> Ctxt
+ctxtS [] _ = []
+ctxtS ((x, t):xs) l =  (x, subst t l):ctxtS xs l
