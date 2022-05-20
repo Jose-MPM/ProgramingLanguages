@@ -268,7 +268,6 @@ substC ((t1,t2):cs) s = (subst t1 s, subst t2 s): (substC cs s)
 -- infer (Add (I 5) (I 9))
 -- infer (And (B False) (B True))
 -- infer $ Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
-
 infer :: Expr -> (Ctxt, Type)
 infer e = let (_, c, tp, r) = rest ([], e)
               mgu = unif r
