@@ -57,6 +57,7 @@ type Constraint = [(Type, Type)]
 
 
 -- | Regresa las variables de tipo de un tipo. 
+
 -- Ejemplos
 -- >>> tvars $ Arrow (T 1) (T 2)
 -- >>> tvars $ Arrow (Arrow (T 1) (T 2)) (T 2)
@@ -69,7 +70,8 @@ tvars (Boolean) = []
 tvars (Arrow t1 t2) = nub $ (tvars t1) ++ (tvars t2)  
 
 
--- | Obtiene una variable de tipo fresca
+-- | Obtiene una variable de tipo fresca.
+
 -- Ejemplos
 -- >>> fresh [T 0, T 1, T 2, T 3]
 -- >>> fresh [T 0, T 1, T 3, T 4]
@@ -89,7 +91,7 @@ minFrom a (n,xs)
  | m == b-a   = minFrom b (n - m, vs)
  | otherwise  = minFrom a (m, us)
  where (us, vs) = partition (< b) xs
-       b = a + 1 + div n 2
+       b = a + 1 + div n 2 
        m = length us
 
 findT :: Identifier -> Ctxt -> Maybe Type
@@ -98,19 +100,19 @@ findT x ((y, t): ys) = if x == y
                        then Just t
                        else findT x ys
 
--- | Dada una expresión infiere su tipo
--- | Obtiene el conjunto de restricciones
---   para la expresión
+-- | Dada una expresión infiere su tipo y obtiene 
+--   el conjunto de restricciones para la expresión.
+
 -- Ejemplos
 -- >>> rest ([], (Add (V "x") (V "x")))
 -- >>> rest ([], Fn "x" (V "x"))
--- b = (Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
---- >>> rest([],b)
---- >>> rest([],Add (I 5) (I 9))
+-- >>> b = (Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
+-- >>> rest([],b)
+-- >>> rest([],Add (I 5) (I 9))
 rest :: ([Type], Expr) -> ([Type], Ctxt, Type, Constraint)
 rest (xs, V x) = (fresh xs:xs, [(x, fresh xs)], fresh xs, [])
-rest (xs, I n) = (Integer:xs, [], Integer, [])
-rest (xs, B b) = (Boolean:xs, [], Boolean, [])
+rest (xs, I n) = (xs, [], Integer, [])
+rest (xs, B b) = (xs, [], Boolean, [])
 rest (xs, Fn x e) = let (t2, c, tp, r) = rest (xs, e)
                       in case findT x c of
                         Just tpA -> (t2,  c \\ [(x, tpA)] , Arrow tpA tp, r)
@@ -206,7 +208,8 @@ rest (t, App e1 e2) = let (t1, c1, tp1, r1) = rest (t, e1)
 type Substitution = [(IdentifierT, Type)]
 
 -- | Dado un tipo y una sustitución, regresa la
--- aplicion de la sustitucion al tipo
+-- aplicion de la sustitucion al tipo.
+
 -- Ejemplos
 -- >>> subst (Arrow (T 1) (T 2)) [(2, Arrow (T 2) (T 3))]
 -- >>> subst (Arrow (T 1) (Arrow (T 2) (T 1))) [(1, T 2), (2, T 3)]
@@ -218,8 +221,10 @@ subst (T n) ((i,tipo):xs) = if n == i
 subst (Arrow t1 t2) xs = Arrow (subst t1 xs) (subst t2 xs)
 subst t _ = t
 
--- | Realiza la composición de dos sustituciones
--- 
+-- | Realiza la composición de dos sustituciones.
+
+-- Ejemplos
+-- >>> comp [(1, (Arrow (T 2) (T 3))), (4, T 5)] [(2, T 6)]
 comp :: Substitution -> Substitution -> Substitution
 comp s1 s2 = noDup $ ((map (\x -> (fst x, subst (snd x) s2 )) s1) ++ s2)
 
@@ -229,8 +234,9 @@ noDup [] = []
 
 
 -- | Intenta unificar las restricciones, regresa el
---   unificador más general
---Ejemplos de la nota 7
+--   unificador más general.
+
+-- Ejemplos de la nota 7
 -- Ejemplo 3.1 Sí se unifica
 -- >>> unif [(Arrow (T 1) (T 2), Arrow (Arrow (T 3) (T 4)) (T 5))]
 -- Ejemplo 3.2 No se unifica
@@ -240,8 +246,8 @@ unif [] = []
 unif ((t1, t2):xs)
   | t1 == t2 = unif(xs)
   | otherwise = case (t1, t2) of
-                  (Integer, Boolean) -> error "Fail"
-                  (Boolean, Integer) -> error "Fail"
+                  (Integer, Boolean) -> []
+                  (Boolean, Integer) -> []
                   (T idT, tipo) -> if idT `elem` (tvars tipo)
                                 then error "Fail, no se puede unificar" -- no vamos a poder sustituir cosas del tipo X = U - Z 
                                 else comp unificacion sustitucion
@@ -258,9 +264,10 @@ substC ((t1,t2):cs) s = (subst t1 s, subst t2 s): (substC cs s)
 
 -- | Dada una expresión infiere su tipo devolviendo el
 --   contexto donde es valido.
+
 -- infer (Add (I 5) (I 9))
--- infer con falla con:
--- (Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
+-- infer (And (B False) (B True))
+-- infer $ Let (B True) (Fn ("x") (And (V "x") (Let (I 10) (Fn ("x") (Eq (I 0) (Succ (V "x"))))))))
 
 infer :: Expr -> (Ctxt, Type)
 infer e = let (_, c, tp, r) = rest ([], e)
