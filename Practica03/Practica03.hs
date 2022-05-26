@@ -121,9 +121,20 @@ newAddress _ = error "implementar"
 access :: Address -> Memory -> Maybe Value
 access _ = error "implementar"
 
--- Oscar
+-- | Dada una celda y una memoria tal vez actualiza la memoria
+-- con la nueva celda.
+
+-- Ejemplos
+-- >>> update (1, I 4) [(1, I 5), (2, I 7)]
+-- >>> update (1, I 6) [(5, I 6), (3, V "x"), (4, I 9)]
+-- >>> update (1, V "y") [(1, I 9), (7, I 8)]
+-- >>> update (1, V "y") [(1, I 9), (1, I 8)]
 update :: Cell -> Memory -> Maybe Memory
-update cell memory = error "implementar"
+update cell@((dir, val)) memory
+  | corrupted memory = error "Memory corrupted."
+  | otherwise = case lookup dir memory of
+                  Nothing -> Nothing
+                  Just v -> Just $ cell : filter (\x -> (fst x) /= dir) memory 
 
 -- | Indica si la memoria es corrupta
 
