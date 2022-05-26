@@ -1,0 +1,126 @@
+module MiniC where
+
+{- | Practica 03
+     
+     Equipo:
+
+     * Alejandra Ortega Garcia - 420002495
+     * Oscar Ramírez Gutiérrez - 419004283 
+     * José Manuel Pedro Méndez - 31507312
+
+-}
+
+
+-- | Definicion de las expresiones del lenguaje MiniC
+type Identifier = String
+
+data Expr = V Identifier -- variable
+          | I Int
+          | B Bool
+          | Succ Expr
+          | Pred Expr
+          | Add Expr Expr
+          | Mul Expr Expr
+          | Not Expr
+          | Iszero Expr
+          | And Expr Expr
+          | Or Expr Expr 
+          | Lt Expr Expr -- menor que
+          | Gt Expr Expr -- mayor que
+          | Eq Expr Expr
+          | If Expr Expr Expr
+          | Let Expr Expr
+          | Fn Identifier Expr -- funciones anonimas  
+          | App Expr Expr -- e1 e2
+          | L Int -- direccion de memoria 
+          | Alloc Expr -- crear una celda de memoria y obtener su direccion
+          | Dref Expr -- obtener el valor almacenado en una direccion de memoria
+          | Assign Expr Expr -- almacenar un valor en una celda de memoria
+          | Void
+          | Sew Expr Expr
+          | While Expr Expr
+           deriving (Show, Eq)
+
+-- data OpUn
+--   = Succ
+--   | Pred
+--   | Not
+--   | IsZero
+--   deriving (Eq, Enum, Show)
+
+-- data OpBin
+--   = Add
+--   | Mul
+--   | And
+--   | Or
+--   | Lt
+--   | Gt
+--   | Eq
+--   deriving (Eq, Enum, Show)
+
+-- data Expr
+--   = V Identifier
+--   | I Int
+--   | B Bool
+--   | Un OpUn Expr
+--   | Bin OpBin Expr Expr
+--   | If Expr Expr Expr
+--   | Let Expr Expr
+--   | Fn Identifier Expr -- funciones anonimas  
+--   | App Expr Expr -- e1 e2
+--   | L Int -- direccion de memoria 
+--   | Alloc Expr -- crear una celda de memoria y obtener su direccion
+--   | Dref Expr -- obtener el valor almacenado en una direccion de memoria
+--   | Assign Expr Expr -- almacenar un valor en una celda de memoria
+--   | Void
+--   | Sew Expr Expr
+--   | While Expr Expr
+--   deriving (Eq, Show)
+
+
+type Address = Int
+type Value = Expr
+type Cell = (Address, Value)
+type Memory = [Cell]
+
+newAddress :: Memory -> Expr
+newAddress _ = error "implementar"
+
+access :: Address -> Memory -> Maybe Value
+access _ = error "implementar"
+
+update :: Cell -> Memory -> Maybe Memory
+update _ = error "implementar"
+
+frVars :: Expr -> [Identifier]
+frVars (V idf) = [idf]
+  (Succ Expr)
+          (Pred Expr)
+          (Add Expr Expr)
+          (Mul Expr Expr)
+          Not Expr
+         
+  | I Int
+          | B Bool
+          | Iszero Expr
+          | And Expr Expr
+          | Or Expr Expr 
+          | Lt Expr Expr -- menor que
+          | Gt Expr Expr -- mayor que
+          | Eq Expr Expr
+          | If Expr Expr Expr
+          | Let Expr Expr
+          | Fn Identifier Expr -- funciones anonimas  
+          | App Expr Expr -- e1 e2
+          | L Int -- direccion de memoria 
+          | Alloc Expr -- crear una celda de memoria y obtener su direccion
+          | Dref Expr -- obtener el valor almacenado en una direccion de memoria
+          | Assign Expr Expr -- almacenar un valor en una celda de memoria
+          | Void
+          | Sew Expr Expr
+          | While Expr Expr
+
+
+
+
+
