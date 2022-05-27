@@ -142,8 +142,20 @@ minFrom a (n,xs)
        b = a + 1 + div n 2 
        m = length us
 
+-- access 1 [] 
+-- >>> Nothing
+-- access 0 [(1, 1 9), (2, I 22)]
+-- >>> Nothing
+-- access access 2 [(0, B False), (2, I 90)]
+-- >>> Just 90
 access :: Address -> Memory -> Maybe Value
-access _ = error "implementar"
+access _ [] = Nothing
+access n m@((a,v):xs) = if nub [ n | (a,b) <- m,n <- [a]] == [ n | (a,b) <- m,n <- [a]] -- Verificamos que no tengamos direcciones repetidas
+                        then 
+                          if a == n
+                            then Just v
+                            else access n xs
+                        else error "Memory corrupted" 
 
 -- | Dada una celda y una memoria tal vez actualiza la memoria
 -- con la nueva celda.
@@ -190,8 +202,30 @@ frVars _ = []
 
 type Substitution = (Identifier, Expr)
 
+
+-- b= Bin Add (V "x") (I 34)
+-- subs b ("x", I 2)
 subst :: Expr -> Substitution -> Expr
-subst _ _ = error "implementar"
+subst (V idf) (x, e1) = if x == idf
+                        then e1
+                        else (V idf)
+subst (I n) _ = I n
+subst (B b) _ = B b
+subst (Un op e) s = Un op (subst e s)
+subst (Bin op e1 e2) s = Bin op (subst e1 s) (subst e2 s)
+subst (If e1 e2 e3) s = If (subst e1 s) (subst e2 s) (subst e3 s)
+subst (Let e1 e2) s = Let (subst e1 s) (subst e2 s)
+subst (Fn x e) s@(y, z)
+  | x == y || elem x (frVars z) = error "Invalid substitution"
+  | otherwise = Fn x (subst e s)
+subst (App e1 e2) s = App (subst e1 s) (subst e2 s)
+subst (L i) _ = (L i) -- No se puede ahcer una substitucion en una memoria 
+subst (Alloc e1) s = Alloc (subst e1 s)
+subst (Dref e1) s = Dref (subst e1 s)
+subst (Assign e1 e2) s = Assign (subst e1 s) (subst e2 s)
+subst (Void) _ = Void
+subst (Seq e1 e2) s = Seq (subst e1 s) (subst e2 s)
+subst (While e1 e2) s = While (subst e1 s) (subst e2 s)
 
 -- | Dada una memoria y una expresión, devuelva
 --   la reducción a un paso.
