@@ -1,5 +1,7 @@
 module MiniC where
 
+import Data.List
+
 {- | Practica 03
      
      Equipo:
@@ -115,8 +117,30 @@ type Value = Expr
 type Cell = (Address, Value)
 type Memory = [Cell]
 
+-- | Dada una memoria, genera una nueva dirección de memoria que no esté
+--   contenida en esta.
+
+-- Ejemplos
+-- >>> newAddress []
+-- >>> newAddress [(0, B False), (2, I 9)]
+-- >>> newAddress [( 0, I 21), (1, Void), (2, I 12)]
+-- >>> newAddress [(0, I 21), (1, Void), (2, I 12), (1, B True)]
 newAddress :: Memory -> Expr
-newAddress _ = error "implementar"
+newAddress xs 
+  | corrupted xs = error "Memory corrupted."
+  | otherwise = L $ (minFree . fst . unzip) xs 
+
+minFree :: [Int] -> Int
+minFree xs = minFrom 0 (length xs,xs)
+
+minFrom :: Int -> (Int,[Int]) -> Int
+minFrom a (n,xs)
+ | n == 0     = a
+ | m == b-a   = minFrom b (n - m, vs)
+ | otherwise  = minFrom a (m, us)
+ where (us, vs) = partition (< b) xs
+       b = a + 1 + div n 2 
+       m = length us
 
 access :: Address -> Memory -> Maybe Value
 access _ = error "implementar"
@@ -141,9 +165,13 @@ update cell@((dir, val)) memory
 -- Ejemplos
 -- >>> corrupted $ [(1, I 2), (1, I 3)]
 -- >>> corrupted $ [(1, I 2), (2, I 3), (3, V "x")]
+-- >>> corrupted $ [(0, I 21), (1, Void), (2, I 12), (1, B True)]
 corrupted :: Memory -> Bool
-corrupted ((dir, value):xs) = any (\x -> (fst x) == dir) xs
+corrupted xs = (corrupted' . fst . unzip) xs
 
+corrupted' :: [Int] -> Bool
+corrupted' [] = False
+corrupted' (x:xs) = elem x xs || corrupted' xs    
 
 -- | Obtine el conjunto de variable de una expresión
 
@@ -165,7 +193,14 @@ type Substitution = (Identifier, Expr)
 subst :: Expr -> Substitution -> Expr
 subst _ _ = error "implementar"
 
+-- | Dada una memoria y una expresión, devuelva
+--   la reducción a un paso.
 
+-- Ejemplos
+-- >>> eval1 ([(0, B False)], (Add (I 1) (I 2)))
+-- >>> eval1 ([(0, B False)], (Let ”x” (I 1) (Add (V ”x”) (I 2))))
+-- >>> eval1 ([(0, B False)], Assig (L 0 ) (B True))
+-- >>> eval1 ([], While (B True) (Add (I 1) (I 1)))
 eval1 :: (Memory, Expr) -> (Memory, Expr)
 eval1 _ = error "implementar"
 
