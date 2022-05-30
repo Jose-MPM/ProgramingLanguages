@@ -321,13 +321,18 @@ eval1 (xs, all@(While e1 e2)) = (xs, If e1 (Seq e2 all) Void)
 eval1 e'@(xs, e) = e'
 
 
--- Oscar
+-- | Dada una memoria evalua una expresión, regresando el nuevo estado de la memoria
+--   y el valor de la expresión.               
 
+-- Ejemplos
 -- evals ([(0, B False)], (Un Succ $ Un Succ (I 2)))
 -- evals ([(0, B False)], Bin Add (Un Succ $ Un Succ (I 2)) (Bin Add (I 2) (I 3)))
 -- evals ([(0, I 10)] , If (Un IsZero (I 0)) (Bin Add (I 10) (I 10)) (Un Succ (I 20)))
 -- evals ([(0, I 10)] , If (Un Succ (Bin Add (I 10) (I 10))) (Bin Add (I 10) (I 10)) (Un Succ (I 20)))
 -- evals ([(0, I 10)] , App (Fn "x" (Bin Add (V "x") (V "x"))) (Bin Add (I 10) (I 10)))
+-- evals ([(0, B False)], Alloc (Fn "x" (Bin Add (V "x") (I 0))))
+-- evals ([(0, B False)], Let (Alloc (I 666)) (Fn "x" (Dref (V "x")))) 
+-- evals ([(0, B False)], Seq (Alloc (I 666)) ((Dref (L "0"))))
 evals :: (Memory, Expr) -> (Memory, Expr)
 evals (mem, (Un op e)) =
   case (op, snd $ evals (mem, e)) of
@@ -351,51 +356,65 @@ evals (mem, (Bin op e1 e2)) =
     (_, _, _) -> (mem, Bin op e1' e2')
 
 evals (mem, If e1 e2 e3) =
-  case snd $ evals (mem, e1) of
-    (B (True)) -> evals (mem, e2)
-    (B (False)) -> evals (mem, e3)
-    e -> (mem, If e e2 e3)
+  let (mem', e1') = evals (mem, e1) in 
+    case e1' of
+      (B (True)) -> evals (mem', e2)
+      (B (False)) -> evals (mem', e3)
+      noEsBool -> (mem, If noEsBool e2 e3)
     
 evals (mem, Let e1 all@(Fn x e2)) =
-  case snd $ evals (mem, e1) of
-    (I n) -> (mem, subst e2 (x, I n))
-    (B b) -> (mem, subst e2 (x, B b))
-    e -> (mem, Let e all) -- Solo avanzamos si es valor.
+  let (mem', e1') =  evals (mem, e1) in 
+    case e1' of
+      (I n) -> evals $ (mem', subst e2 (x, I n))
+      (B b) -> evals $ (mem', subst e2 (x, B b))
+      (L dir) -> evals $ (mem', subst e2 (x, L dir))
+      e -> (mem', Let e all) -- Solo avanzamos si es valor.
 
 
 evals (mem, App e1 e2) =
-  case snd $ evals (mem, e1) of
-    (Fn x e) -> let parametro = snd $ evals (mem, e2) in
-      evals (mem, subst e (x, parametro))
-    e -> (mem, App e e2)
+  let (mem', e1') = evals (mem, e1) in
+    case e1' of
+      (Fn x e) -> let (mem'', e2') = evals (mem', e2) in
+        evals (mem'', subst e (x, e2'))
+      noEsFuncion -> (mem', App noEsFuncion e2)
 
 evals (mem, Alloc e) =
   let l = newAddress mem
-  in case snd $ evals (mem,e) of
-    (I n) -> ((get l, (I n)):mem, l)
-    (B b) -> ((get l, (B b)):mem, l)
-    (Fn x e') -> ((get l, (Fn x e')):mem, l)
-    e' -> (mem, Alloc e') 
+      (mem', e') = evals (mem, e) in
+    case e' of
+      (I n) -> ((get l, (I n)):mem', l)
+      (B b) -> ((get l, (B b)):mem', l)
+      (Fn x e') -> ((get l, (Fn x e')):mem, l)
+      noEsValor -> (mem, Alloc noEsValor) -- e no es un valor
 
-  
-    -- (Succ, (I n)) -> (m, I (n + 1))
-    -- (Pred, (I n)) -> (m, I (n - 1))
-    -- (IsZero, (I n)) -> (m, B (n == 0))
-    -- (Not, (B b)) -> (m, B (not b))
-    -- (_, _) -> (m, Un op e')
+evals (mem, Dref e) =
+  let (mem', e') = evals (mem, e) in
+    case e' of
+      (L dir) -> (mem, fromJust $ access dir mem)
+      noEsDireccion -> (mem, Dref noEsDireccion) -- e no es una referencia
+
+evals (mem, Assign e1 e2) =
+  let (mem', e1') = evals (mem, e2) in
+    case e1' of
+      (L dir) -> let (mem'', e2') = evals (mem', e2) in
+        case e2' of
+          (I n) -> (fromJust $ update (dir, (I n)) mem'', Void)
+          (B b) -> (fromJust $ update (dir, (B b)) mem'', Void)
+          (Fn x e) -> (fromJust $ update (dir, (Fn x e)) mem'', Void)
+          e' -> (mem'', Assign (L dir) e') -- e1 sí es una direccion pero e2 no es un valor
+      noEsDireccion -> (mem', Assign noEsDireccion e2)
+
+evals (mem, Seq e1 e2) =
+  let (mem', e1') = evals (mem, e1) in
+    evals $ (mem', e2)
+    -- case e1' of
+    --  (Void) -> evals (mem', e2)
+    --  noVoid -> (mem', Seq e1' e2)
+
+evals (mem, all@(While e1 e2)) = evals $ (mem, If e1 (Seq e2 all) Void)
+
 evals p = p
 
---   case eval1 ()
---   case (op, e) of
---     (Succ, (I n)) -> (xs, I (n + 1))
---     (Pred, (I n)) -> (xs, I (n - 1))
---     (IsZero, (I n)) -> (xs, B (n == 0))
---     (Not, (B b)) -> (xs, B (not b))
---     (_,_) -> let (ms, e') = (eval1 (xs, e))
---               in (ms, Un op e')
-
-    
--- evals _ = error "implementar"
 
 evale :: Expr -> Expr
 evale _ = error "implementar"
