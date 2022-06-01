@@ -189,7 +189,7 @@ corrupted' (x:xs) = elem x xs || corrupted' xs
 
 -- Oscar 
 -- Ejemplos
--- >>> frVars $ Bin Add (I 4) (V "x")
+-- >>> frVars $ Bin Add (I 4) (V "x")eval1 ([], While (B True) (Bin Add (I 1) (I 1)))
 -- >>> frVars $ Assign (L 2) (Bin Add (V "z") (V "y"))
 frVars :: Expr -> [Identifier]
 frVars (V idf) = [idf]
@@ -415,8 +415,32 @@ evals (mem, all@(While e1 e2)) = evals $ (mem, If e1 (Seq e2 all) Void)
 
 evals p = p
 
+-- evale (Bin Add (Bin Mul (I 2) (I 6)) (B True))
+-- evale (Bin Add (Bin Mul (I 2) (I 6)) (I 9))
 
 evale :: Expr -> Expr
-evale _ = error "implementar"
+evale e = case evals ([], e) of 
+  (_, V idr) -> error "[Var]"
+  (_, I n) -> I n
+  (_, B b) -> B b
+  (_, Un Succ e) -> error "[Succ] Expects one Integer."
+  (_, Un Pred e) -> error "[Pred] Expects one Integer."
+  (_, Un Not _) -> error "[Not] Expects one Boolean."
+  (_, Bin Add _ _) -> error "[Add] Expects two Integer."
+  (_, Bin Mul _ _) -> error "[Add] Expects two Integer."
+  (_, Bin And _ _) -> error "[Add] Expects two Boolean."
+  (_, Bin Or _ _) -> error "[Add] Expects two Boolean."
+  (_, Bin Lt _ _) -> error "[Lt] Expects two Integer."
+  (_, Bin Gt _ _) -> error "[Gt] Expects two Integer."
+  (_, Bin Eq _ _) -> error "[Eq] Expects two Integer."  
+  (_, If _ _ _) -> error "[If] Expects one Boolean and two Expr."
+  (_, Let _ _) -> error "[Let] Expects one Var of two Expr."
+  (_, Void) -> Void
+  (_, L i) -> L i
+  (_, Alloc _) -> error "[Alloc] Expects one Expr."
+  (_, Dref _) -> error "[Dref] Expects one Expr."
+  (_, Assign _ _) -> error "[Dref] Expects one location and one Expr."
+  (_, Seq _ _) -> error "[Seq] Expects two Expr."
+
 
 
