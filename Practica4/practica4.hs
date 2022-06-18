@@ -102,6 +102,35 @@ data State = E Stack Expr
            | P Stack Expr
            deriving (Show, Eq)
 
+-- Crea una instancia de la clase Show para los marcos de acuerdo
+-- a la sintaxis descrita en las notas del curso. (1 punto)
+instance Show Frame where
+  show e = case e of
+    (AddFL e) -> "Add( _ " ++ ", " ++ (show e) ++ ")"
+    (AddFR e) -> "Add(" ++ (show e) ++ ", " ++ " _ )"
+    (MulFL e) -> "Mul( _ " ++ ", " ++ (show e) ++ ")"
+    (MulFR e) -> "Mul(" ++ (show e) ++ ", " ++ " _ )"
+    (SuccF _) -> "Succ( _ )"
+    (PredF _) -> "Pred( _ )"
+    (NotF _) -> "Not( _ )"
+    (AndFL e) -> "And( _ " ++ ", " ++ (show e) ++ ")"
+    (AndFR e) -> "And(" ++ (show e) ++ ", " ++ " _ )"
+    (OrFL e) -> "Or( _ " ++ ", " ++ (show e) ++ ")"
+    (OrFR e) -> "Or(" ++ (show e) ++ ", " ++ " _ )"
+    (LtFL e) -> "Lt( _ " ++ ", " ++ (show b) ++ ")"
+    (LtFR e) -> "Lt(" ++ (show e) ++ ", " ++ " _ )"
+    (GtFL e) -> "Gt( _ " ++ ", " ++ (show e) ++ ")"
+    (GtFR e) -> "Gt(" ++ (show e) ++ ", " ++ " _ )"
+    (EqFL e) -> "Eq( _ " ++ ", " ++ (show e) ++ ")"
+    (EqFR e) -> "Eq(" ++ (show e) ++ ", " ++ " _ )"
+    (IfF _ e2 e3) = "If( _ , " ++ show e2 ++ " , " ++ show e3+" )"
+    (LetM x e) -> "Let(" ++ (show x) ++ ", _, " ++ (show e) ++ ")"
+
+instance Show State where
+  show e = case e of
+    E(st, expr) -> (show st) ++ " ≻ " ++ (show expr)
+    R(st, expr) -> (show st) ++ " ≺ " ++ (show expr)
+
 -- | Obtine el conjunto de variable de una expresión
 
 -- Ejemplos
