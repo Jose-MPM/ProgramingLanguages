@@ -36,7 +36,6 @@ data Expr
   | Let Expr Expr -- let (e1, x.e2)
   | Fn Identifier Expr -- funciones anonimas  
   | App Expr Expr -- e1 e2
-  | Alloc Expr
   deriving (Eq, Show)  
 
 
@@ -58,22 +57,16 @@ data Frame
   | IfF Expr Expr
   | LetF Identifier Expr
   | AppFL Expr | AppFR Expr
-  | AllocF
   deriving (Eq, Show)
 
 data Stack = Empty
            | S Frame Stack
            deriving Show
 
-data State = E Stack Memory Expr
-           | R Stack Memory Expr
-           | P Stack Memory Expr
+data State = E Stack Expr
+           | R Stack Expr
+           | P Stack Expr
            deriving Show
-
-type Address = Int
-type Value = Expr
-type Cell = (Address, Value)
-type Memory = [Cell]
 
 
 -- | Obtine el conjunto de variable de una expresión
@@ -140,80 +133,80 @@ subst (App e1 e2) s = App (subst e1 s) (subst e2 s)
 --   la reducción a un paso.
 
 -- Ejemplos
--- >>> eval1 (E Empty [] (Add (I 2) (I 3)))
--- >>> eval1 (E (S (AddFL (I 3)) Empty) [] (I 2))
+-- >>> eval1 (E Empty (Add (I 2) (I 3)))
+-- >>> eval1 (E (S (AddFL (I 3)) Empty) (I 2))
 -- >>> let s1 = 
---- (E Empty [] (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
+--- (E Empty (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
 --- eval s1
 
 eval1 :: State -> State
-eval1 (E s m e@(I n)) = R s m e
-eval1 (E s m e@(B b)) = R s m e
-eval1 (E s m e@(Fn x exp)) = R s m e 
+eval1 (E s e@(I n)) = R s e
+eval1 (E s e@(B b)) = R s e
+eval1 (E s e@(Fn x exp)) = R s e 
 -- Suc
-eval1 (E s m (Succ e)) = E (S SuccF s) m e
-eval1 (R (S SuccF s) m (I v)) = R s m (I (v + 1))
--- Pred
-eval1 (E s m (Pred e)) = E (S PredF s) m e
-eval1 (R (S PredF s) m (I v)) = R s m (I (v + 1))
+eval1 (E s (Succ e)) = E (S SuccF s) e
+eval1 (R (S SuccF s) (I v)) = R s (I (v + 1))
+-- Pred 
+eval1 (E s (Pred e)) = E (S PredF s) e
+eval1 (R (S PredF s) (I v)) = R s (I (v + 1))
 -- Not
-eval1 (E s m (Not e)) = E (S NotF s) m e
-eval1 (R (S NotF s) m (B v)) = R s m (B (not v))
+eval1 (E s (Not e)) = E (S NotF s) e 
+eval1 (R (S NotF s) (B v)) = R s (B (not v))
 -- Iszero
-eval1 (E s m (Iszero e)) = E (S IszeroF s) m e
-eval1 (R (S IszeroF s) m (I v)) = R s m (B (v == 0))
--- Add
-eval1 (E s m (Add e1 e2)) = E (S (AddFL e2) s) m e1
-eval1 (R (S (AddFL e2) s) m v) = E (S (AddFR v) s) m e2
-eval1 (R (S (AddFR (I v1)) s) m (I v2)) = R s m (I (v1 + v2))
+eval1 (E s (Iszero e)) = E (S IszeroF s) e
+eval1 (R (S IszeroF s) (I v)) = R s (B (v == 0))
+-- Add 
+eval1 (E s (Add e1 e2)) = E (S (AddFL e2) s) e1
+eval1 (R (S (AddFL e2) s) v) = E (S (AddFR v) s) e2
+eval1 (R (S (AddFR (I v1)) s) (I v2)) = R s (I (v1 + v2))
 -- Mul
-eval1 (E s m (Mul e1 e2)) = E (S (MulFL e2) s) m e1
-eval1 (R (S (MulFL e2) s) m v) = E (S (MulFR v) s) m e2
-eval1 (R (S (MulFR (I v1)) s) m (I v2)) = R s m (I (v1 * v2))
+eval1 (E s (Mul e1 e2)) = E (S (MulFL e2) s) e1
+eval1 (R (S (MulFL e2) s) v) = E (S (MulFR v) s) e2
+eval1 (R (S (MulFR (I v1)) s) (I v2)) = R s (I (v1 * v2))
 -- And
-eval1 (E s m (And e1 e2)) = E (S (AndFL e2) s) m e1
-eval1 (R (S (AndFL e2) s) m v) = E (S (AndFR v) s) m e2
-eval1 (R (S (AndFR (B v1)) s) m (B v2)) = R s m (B (v1 && v2))
+eval1 (E s (And e1 e2)) = E (S (AndFL e2) s) e1
+eval1 (R (S (AndFL e2) s) v) = E (S (AndFR v) s) e2
+eval1 (R (S (AndFR (B v1)) s) (B v2)) = R s (B (v1 && v2))
 -- Or
-eval1 (E s m (Or e1 e2)) = E (S (OrFL e2) s) m e1
-eval1 (R (S (OrFL e2) s) m v) = E (S (OrFR v) s) m e2
-eval1 (R (S (OrFR (B v1)) s) m (B v2)) = R s m (B (v1 || v2))
+eval1 (E s (Or e1 e2)) = E (S (OrFL e2) s) e1
+eval1 (R (S (OrFL e2) s) v) = E (S (OrFR v) s) e2
+eval1 (R (S (OrFR (B v1)) s) (B v2)) = R s (B (v1 || v2))
 -- Lt
-eval1 (E s m (Lt e1 e2)) = E (S (LtFL e2) s) m e1
-eval1 (R (S (LtFL e2) s) m v) = E (S (LtFR v) s) m e2
-eval1 (R (S (LtFR (I v1)) s) m (I v2)) = R s m (B (v1 < v2))
+eval1 (E s (Lt e1 e2)) = E (S (LtFL e2) s) e1
+eval1 (R (S (LtFL e2) s) v) = E (S (LtFR v) s) e2
+eval1 (R (S (LtFR (I v1)) s) (I v2)) = R s (B (v1 < v2))
 -- Gt
-eval1 (E s m (Gt e1 e2)) = E (S (GtFL e2) s) m e1
-eval1 (R (S (GtFL e2) s) m v) = E (S (GtFR v) s) m e2
-eval1 (R (S (GtFR (I v1)) s) m (I v2)) = R s m (B (v1 > v2))
+eval1 (E s (Gt e1 e2)) = E (S (GtFL e2) s) e1
+eval1 (R (S (GtFL e2) s) v) = E (S (GtFR v) s) e2
+eval1 (R (S (GtFR (I v1)) s) (I v2)) = R s (B (v1 > v2))
 -- Eq
-eval1 (E s m (Eq e1 e2)) = E (S (EqFL e2) s) m e1
-eval1 (R (S (EqFL e2) s) m v) = E (S (EqFR v) s) m e2
-eval1 (R (S (EqFR (I v1)) s) m (I v2)) = R s m (B (v1 == v2))
+eval1 (E s (Eq e1 e2)) = E (S (EqFL e2) s) e1
+eval1 (R (S (EqFL e2) s) v) = E (S (EqFR v) s) e2
+eval1 (R (S (EqFR (I v1)) s) (I v2)) = R s (B (v1 == v2))
 -- If
-eval1 (E s m (If e1 e2 e3)) = E (S (IfF e2 e3) s) m e1
-eval1 (R (S (IfF e2 e3) s) m v) = 
+eval1 (E s (If e1 e2 e3)) = E (S (IfF e2 e3) s) e1
+eval1 (R (S (IfF e2 e3) s) v) = 
   case v of
-    (B True) -> E s m e2
-    (B False) -> E s m e3
-    _ -> E (S (IfF e2 e3) s) m v --- ??
+    (B True) -> E s e2
+    (B False) -> E s e3
+    _ -> E (S (IfF e2 e3) s) v --- ??
 -- Let
-eval1 (E s m (Let e1 all@(Fn x e2))) =  E (S (LetF x e2) s) m e1
-eval1 (R (S (LetF x e2) s) m v) =
+eval1 (E s (Let e1 all@(Fn x e2))) =  E (S (LetF x e2) s) e1
+eval1 (R (S (LetF x e2) s) v) =
   case v of 
-     (I n) -> R s m (subst e2 (x, v))
-     (B b) -> R s m (subst e2 (x, v))
-     (Fn x e) -> R s m (subst e (x, v))
+     (I n) -> R s (subst e2 (x, v))
+     (B b) -> R s (subst e2 (x, v))
+     (Fn x e) -> R s (subst e (x, v))
 -- App
-eval1 (E s m (App e1 e2)) = E (S (AddFL e2) s) m e1
-eval1 (R (S (AppFL e2) s) m v) =  E (S (AppFR v) s) m e2
-eval1 (R (S (AddFR (Fn x e)) s) m v) =
+eval1 (E s (App e1 e2)) = E (S (AddFL e2) s) e1
+eval1 (R (S (AppFL e2) s) v) =  E (S (AppFR v) s) e2
+eval1 (R (S (AddFR (Fn x e)) s) v) =
   case v of 
-     (I n) -> R s m (subst e (x, v))
-     (B b) -> R s m (subst e (x, v))
-     (Fn x e) -> R s m (subst e (x, v))
+     (I n) -> R s (subst e (x, v))
+     (B b) -> R s (subst e (x, v))
+     (Fn x e) -> R s (subst e (x, v))
 
-eval1 (R Empty m e) = (E Empty m e)
+eval1 (R Empty e) = (E Empty e)
 
 
 isValue :: Expr -> Bool
