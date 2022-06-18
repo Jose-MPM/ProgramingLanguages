@@ -138,6 +138,7 @@ instance Show State where
     E st expr  -> show st ++ " ≻ " ++ show expr
     R st expr -> show st ++ " ≺ " ++ show expr
     P st expr -> show st ++ " ≺≺ " ++ show expr
+
 -- | Obtine el conjunto de variable de una expresión
 
 -- Ejemplos
@@ -207,6 +208,7 @@ subst (App e1 e2) s = App (subst e1 s) (subst e2 s)
 -- >>> let s1 = 
 --- (E Empty (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
 --- eval s1
+--- >>> eval1 $ P (S (HandleF "x" (V "x")) Empty) (Raise (B False))
 
 eval1 :: State -> State
 eval1 (E s e@(I n)) = R s e
@@ -298,13 +300,13 @@ eval1 (R Empty e) = (E Empty e)
 eval1 e = e
 
 
-
 isBlocked :: State -> Bool
 isBlocked e = (eval1 $ eval1 e) == e
 
 -- Ejemplos
 -- >>> evals (E Empty (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
 -- >>> evals (E (S (AddFL (I 3)) Empty) (I 2))
+-- >>> evals (E (S (AddFL (I 3)) Empty) (B True))
 evals :: State -> State
 evals e = let e' = eval1 e in
             if isBlocked e'
@@ -312,9 +314,16 @@ evals e = let e' = eval1 e in
               e'
             else
               evals e'
-  
-isValue :: Expr -> Bool
-isValue (I n) = True
-isValue (B b) = True
-isValue (Fn x e) = True
-isValue _ = False
+-- Ejemplos
+-- >>> evale $ Add (I 2) (I 4)
+-- >>> evale $ Add (I 2) (Add (I 5) (B True))
+-- >>> evale $ Add (I 2) (If (Iszero (I 0)) (I 20) (B True))
+-- >>> evale $ Add (I 2) (If (Iszero (I 2)) (I 20) (B True))
+evale :: Expr -> Expr
+evale e =
+  let state = evals $ E Empty e
+  in case state of
+    (R Empty a@(I n)) -> a
+    (R Empty a@(B b)) -> a
+    (R Empty a@(Fn x ex)) -> a
+    _ -> error "Error en tiempo de ejecucion."
