@@ -36,6 +36,9 @@ data Expr
   | Let Expr Expr -- let (e1, x.e2)
   | Fn Identifier Expr -- funciones anonimas  
   | App Expr Expr -- e1 e2
+
+  | Raise Expr
+  | Handle Expr Identifier Expr -- handle(e1, x.e2)
   deriving (Eq)
 
 instance Show Expr where
@@ -62,6 +65,11 @@ instance Show Expr where
   show (Fn idr e) = "λ" ++ idr ++ "." ++ show e
   show (App e1 e2) = show e1 ++ " " ++ show e2
 
+  show (Raise e) = "raise " ++ show e
+  show (Handle e1 idr e2) =  "hanlde " ++ show e1
+                             ++ " with " ++ show idr ++ " => "
+                             ++ show e2
+
 data Frame
   = SuccF
   | PredF 
@@ -80,6 +88,9 @@ data Frame
   | IfF Expr Expr
   | LetF Identifier Expr
   | AppFL Expr | AppFR Expr
+
+  | RaiseF
+  | HandleF Identifier Expr
   deriving (Eq, Show)
 
 data Stack = Empty
@@ -227,8 +238,27 @@ eval1 (R (S (AddFR (Fn x e)) s) v) =
      (I n) -> R s (subst e (x, v))
      (B b) -> R s (subst e (x, v))
      (Fn x e) -> R s (subst e (x, v))
+-- Raise
+eval1 (E s (Raise e)) = E (S RaiseF s) e
+eval1 (R (S RaiseF s) v) =
+  case v of
+    (I n) -> P s (Raise v)
+    (B b) -> P s (Raise v)
+    (Fn x e) -> P s (Raise v)
+-- Handle
+eval1 (E s (Handle e1 x e2)) = E (S (HandleF x e2) s) e1
+eval1 (R (S (HandleF x e2) s) v) =
+  case v of
+    (I n) -> R s v
+    (B b) -> R s v
+    (Fn x e) -> R s v
+eval1 (P (S (HandleF x e2) s) (Raise v)) = E s (subst e2 (x, v))
+eval1 (P (S f s) (Raise v)) = P s (Raise v)
 
 eval1 (R Empty e) = (E Empty e)
+
+-- solo nos interesan los casos "positivos"
+-- los casos negativos regresa lo mismo para saber que esta bloqueado
 eval1 e = e
 
 
