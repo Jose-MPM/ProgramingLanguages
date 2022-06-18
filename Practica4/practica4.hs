@@ -36,7 +36,6 @@ data Expr
   | Let Expr Expr -- let (e1, x.e2)
   | Fn Identifier Expr -- funciones anonimas  
   | App Expr Expr -- e1 e2
-  | Alloc Expr
   deriving (Eq)
 
 instance Show Expr where
@@ -163,73 +162,75 @@ subst (App e1 e2) s = App (subst e1 s) (subst e2 s)
 --- eval s1
 
 eval1 :: State -> State
-eval1 (E s  e@(I n)) = R s  e
-eval1 (E s  e@(B b)) = R s  e
-eval1 (E s  e@(Fn x exp)) = R s  e 
+eval1 (E s e@(I n)) = R s e
+eval1 (E s e@(B b)) = R s e
+eval1 (E s e@(Fn x exp)) = R s e 
 -- Suc
-eval1 (E s  (Succ e)) = E (S SuccF s)  e
-eval1 (R (S SuccF s)  (I v)) = R s  (I (v + 1))
--- Pred
-eval1 (E s  (Pred e)) = E (S PredF s)  e
-eval1 (R (S PredF s)  (I v)) = R s  (I (v + 1))
+eval1 (E s (Succ e)) = E (S SuccF s) e
+eval1 (R (S SuccF s) (I v)) = R s (I (v + 1))
+-- Pred 
+eval1 (E s (Pred e)) = E (S PredF s) e
+eval1 (R (S PredF s) (I v)) = R s (I (v + 1))
 -- Not
-eval1 (E s  (Not e)) = E (S NotF s)  e
-eval1 (R (S NotF s)  (B v)) = R s  (B (not v))
+eval1 (E s (Not e)) = E (S NotF s) e 
+eval1 (R (S NotF s) (B v)) = R s (B (not v))
 -- Iszero
-eval1 (E s  (Iszero e)) = E (S IszeroF s)  e
-eval1 (R (S IszeroF s)  (I v)) = R s  (B (v == 0))
--- Add
-eval1 (E s  (Add e1 e2)) = E (S (AddFL e2) s)  e1
-eval1 (R (S (AddFL e2) s)  v) = E (S (AddFR v) s)  e2
-eval1 (R (S (AddFR (I v1)) s)  (I v2)) = R s  (I (v1 + v2))
+eval1 (E s (Iszero e)) = E (S IszeroF s) e
+eval1 (R (S IszeroF s) (I v)) = R s (B (v == 0))
+-- Add 
+eval1 (E s (Add e1 e2)) = E (S (AddFL e2) s) e1
+eval1 (R (S (AddFL e2) s) v) = E (S (AddFR v) s) e2
+eval1 (R (S (AddFR (I v1)) s) (I v2)) = R s (I (v1 + v2))
 -- Mul
-eval1 (E s  (Mul e1 e2)) = E (S (MulFL e2) s)  e1
-eval1 (R (S (MulFL e2) s)  v) = E (S (MulFR v) s)  e2
-eval1 (R (S (MulFR (I v1)) s)  (I v2)) = R s  (I (v1 * v2))
+eval1 (E s (Mul e1 e2)) = E (S (MulFL e2) s) e1
+eval1 (R (S (MulFL e2) s) v) = E (S (MulFR v) s) e2
+eval1 (R (S (MulFR (I v1)) s) (I v2)) = R s (I (v1 * v2))
 -- And
-eval1 (E s  (And e1 e2)) = E (S (AndFL e2) s)  e1
-eval1 (R (S (AndFL e2) s)  v) = E (S (AndFR v) s)  e2
-eval1 (R (S (AndFR (B v1)) s)  (B v2)) = R s  (B (v1 && v2))
+eval1 (E s (And e1 e2)) = E (S (AndFL e2) s) e1
+eval1 (R (S (AndFL e2) s) v) = E (S (AndFR v) s) e2
+eval1 (R (S (AndFR (B v1)) s) (B v2)) = R s (B (v1 && v2))
 -- Or
-eval1 (E s  (Or e1 e2)) = E (S (OrFL e2) s)  e1
-eval1 (R (S (OrFL e2) s)  v) = E (S (OrFR v) s)  e2
-eval1 (R (S (OrFR (B v1)) s)  (B v2)) = R s  (B (v1 || v2))
+eval1 (E s (Or e1 e2)) = E (S (OrFL e2) s) e1
+eval1 (R (S (OrFL e2) s) v) = E (S (OrFR v) s) e2
+eval1 (R (S (OrFR (B v1)) s) (B v2)) = R s (B (v1 || v2))
 -- Lt
-eval1 (E s  (Lt e1 e2)) = E (S (LtFL e2) s)  e1
-eval1 (R (S (LtFL e2) s)  v) = E (S (LtFR v) s)  e2
-eval1 (R (S (LtFR (I v1)) s)  (I v2)) = R s  (B (v1 < v2))
+eval1 (E s (Lt e1 e2)) = E (S (LtFL e2) s) e1
+eval1 (R (S (LtFL e2) s) v) = E (S (LtFR v) s) e2
+eval1 (R (S (LtFR (I v1)) s) (I v2)) = R s (B (v1 < v2))
 -- Gt
-eval1 (E s  (Gt e1 e2)) = E (S (GtFL e2) s)  e1
-eval1 (R (S (GtFL e2) s)  v) = E (S (GtFR v) s)  e2
-eval1 (R (S (GtFR (I v1)) s)  (I v2)) = R s  (B (v1 > v2))
+eval1 (E s (Gt e1 e2)) = E (S (GtFL e2) s) e1
+eval1 (R (S (GtFL e2) s) v) = E (S (GtFR v) s) e2
+eval1 (R (S (GtFR (I v1)) s) (I v2)) = R s (B (v1 > v2))
 -- Eq
-eval1 (E s  (Eq e1 e2)) = E (S (EqFL e2) s)  e1
-eval1 (R (S (EqFL e2) s)  v) = E (S (EqFR v) s)  e2
-eval1 (R (S (EqFR (I v1)) s)  (I v2)) = R s  (B (v1 == v2))
+eval1 (E s (Eq e1 e2)) = E (S (EqFL e2) s) e1
+eval1 (R (S (EqFL e2) s) v) = E (S (EqFR v) s) e2
+eval1 (R (S (EqFR (I v1)) s) (I v2)) = R s (B (v1 == v2))
 -- If
-eval1 (E s  (If e1 e2 e3)) = E (S (IfF e2 e3) s)  e1
-eval1 (R (S (IfF e2 e3) s)  v) = 
+eval1 (E s (If e1 e2 e3)) = E (S (IfF e2 e3) s) e1
+eval1 (R (S (IfF e2 e3) s) v) = 
   case v of
-    (B True) -> E s  e2
-    (B False) -> E s  e3
-    _ -> E (S (IfF e2 e3) s)  v --- ??
+    (B True) -> E s e2
+    (B False) -> E s e3
+    _ -> E (S (IfF e2 e3) s) v --- ??
 -- Let
-eval1 (E s  (Let e1 all@(Fn x e2))) =  E (S (LetF x e2) s)  e1
-eval1 (R (S (LetF x e2) s)  v) =
+eval1 (E s (Let e1 all@(Fn x e2))) =  E (S (LetF x e2) s) e1
+eval1 (R (S (LetF x e2) s) v) =
   case v of 
-     (I n) -> R s  (subst e2 (x, v))
-     (B b) -> R s  (subst e2 (x, v))
-     (Fn x e) -> R s  (subst e (x, v))
+     (I n) -> R s (subst e2 (x, v))
+     (B b) -> R s (subst e2 (x, v))
+     (Fn x e) -> R s (subst e (x, v))
 -- App
-eval1 (E s  (App e1 e2)) = E (S (AddFL e2) s)  e1
-eval1 (R (S (AppFL e2) s)  v) =  E (S (AppFR v) s)  e2
-eval1 (R (S (AddFR (Fn x e)) s)  v) =
+eval1 (E s (App e1 e2)) = E (S (AddFL e2) s) e1
+eval1 (R (S (AppFL e2) s) v) =  E (S (AppFR v) s) e2
+eval1 (R (S (AddFR (Fn x e)) s) v) =
   case v of 
-     (I n) -> R s  (subst e (x, v))
-     (B b) -> R s  (subst e (x, v))
-     (Fn x e) -> R s  (subst e (x, v))
+     (I n) -> R s (subst e (x, v))
+     (B b) -> R s (subst e (x, v))
+     (Fn x e) -> R s (subst e (x, v))
+
 eval1 (R Empty e) = (E Empty e)
 eval1 e = e
+
 
 
 isBlocked :: State -> Bool
