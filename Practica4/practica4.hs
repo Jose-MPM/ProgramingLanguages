@@ -161,7 +161,8 @@ frVars (If e1 e2 e3) = frVars e1 ++ frVars e2 ++ frVars e3
 frVars (Let e1 e2) = frVars e1 ++ frVars e2
 frVars (Fn x e) = filter (/= x) (frVars e)
 frVars (App e1 e2) = frVars e1 ++ frVars e2
-
+frVars (Raise e) = frVars e
+frVars (Handle e1 x e2) = filter (/= x) (frVars e1 ++ frVars e2) 
 
 type Substitution = (Identifier, Expr)
 
@@ -195,8 +196,12 @@ subst (Let e1 e2) s = Let (subst e1 s) (subst e2 s)
 subst (Fn x e) s@(y, z)
   | x == y || elem x (frVars z) = error "Invalid substitution"
   | otherwise = Fn x (subst e s)
-
 subst (App e1 e2) s = App (subst e1 s) (subst e2 s)
+subst (Raise e) s = Raise $ subst e s
+subst (Handle e1 x e2) s@(y, z)
+  | x == y || elem x (frVars z) = error "Invalid substitution"
+  | otherwise = Handle (subst e1 s) x (subst e2 s)
+
 
 
 -- | Dado un estado de la pila de control, devuelve
@@ -292,7 +297,6 @@ eval1 (R (S (HandleF x e2) s) v) =
     (Fn x e) -> R s v
 eval1 (P (S (HandleF x e2) s) (Raise v)) = E s (subst e2 (x, v))
 eval1 (P (S f s) (Raise v)) = P s (Raise v)
-
 eval1 (R Empty e) = (E Empty e)
 
 -- solo nos interesan los casos "positivos"
@@ -326,4 +330,4 @@ evale e =
     (R Empty a@(I n)) -> a
     (R Empty a@(B b)) -> a
     (R Empty a@(Fn x ex)) -> a
-    _ -> error "Error en tiempo de ejecucion."
+    _ -> error "Error en tiempo de ejecucion, que problamente es de tipos"
