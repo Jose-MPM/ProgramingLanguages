@@ -1,0 +1,25 @@
+module Sintax where
+
+import Data.List
+
+type Identifier = String
+
+data Expr = V Identifier -- variable
+          | I Int
+          | B Bool
+          | Succ Expr
+          | Pred Expr
+          | Add Expr Expr
+          | Mul Expr Expr
+          | Not Expr
+          | Iszero Expr
+          | And Expr Expr
+          | Or Expr Expr 
+          | Lt Expr Expr -- menor que
+          | Gt Expr Expr -- mayor que
+          | Eq Expr Expr
+          | If Expr Expr Expr
+          | Let Expr Expr
+          | Fn Identifier Expr -- funciones anonimas  
+          | App Expr Expr -- e1 e2
+           deriving (Show, Eq)

@@ -29,7 +29,7 @@ data EAB = Var String
          | Lt EAB EAB
          | MatchNat EAB EAB EAB
          | Abs String EAB  
-         deriving (Show)
+         deriving (Eq, Show)
 
 -- Ejemplo NEG
 -- >>> eval1 (Neg (And (B True) (B False)))
@@ -173,68 +173,79 @@ fv (Abs x e) = filter (/= x) (fv e)
 -- >>> evals (MatchNat (Pred (Sum (Num 7) (Num 5))) (Num 7) (Abs ("x") (Prod (Var "x") (Num 3))))
 -- >>> evals Gt (B False) (Num 0)
 -- >>> evals Lt (Neg (Num 2)) (Num 0)
--- 
+--
+
+isBlocked :: EAB -> Bool
+isBlocked e = eval1 e == e
+
 evals :: EAB -> EAB
-evals (Sum e1 e2) = case (evals e1, evals e2) of
-                     (Num n, Num m) -> Num (n+m)
-                     (e1,e2) -> Sum e1 e2
+evals e = let e' = eval1 e in
+            if isBlocked e'
+            then
+              e'
+            else
+              evals e'
+                        
+-- evals (Sum e1 e2) = case (evals e1, evals e2) of
+--                      (Num n, Num m) -> Num (n+m)
+--                      (e1,e2) -> Sum e1 e2
 
-evals (Prod e1 e2) = case (evals e1, evals e2) of
-                     (Num n, Num m) -> Num (n*m)
-                     (e1,e2) -> Prod e1 e2
+-- evals (Prod e1 e2) = case (evals e1, evals e2) of
+--                      (Num n, Num m) -> Num (n*m)
+--                      (e1,e2) -> Prod e1 e2
 
-evals (Neg e1) = case evals e1 of
-                   (Num n) -> Num(-n)
-                   e -> Neg e 
+-- evals (Neg e1) = case evals e1 of
+--                    (Num n) -> Num(-n)
+--                    e -> Neg e 
 
-evals (Pred e1) = case evals e1 of
-                    (Num n) -> Num (n-1)
-                    e -> Pred e
+-- evals (Pred e1) = case evals e1 of
+--                     (Num n) -> Num (n-1)
+--                     e -> Pred e
   
-evals (Suc e1) = case evals e1 of
-                   (Num n) -> Num (n+1)
-                   e -> Suc e 
+-- evals (Suc e1) = case evals e1 of
+--                    (Num n) -> Num (n+1)
+--                    e -> Suc e 
 
-evals (And e1 e2) = case (evals e1, evals e2) of
-                      (B b1, B b2) -> B (b1 && b2)
-                      (e1, e2) -> And e1 e2
+-- evals (And e1 e2) = case (evals e1, evals e2) of
+--                       (B b1, B b2) -> B (b1 && b2)
+--                       (e1, e2) -> And e1 e2
 
-evals (Or e1 e2) = case (evals e1, evals e2) of
-                    (B b1, B b2) -> B (b1 || b2)
-                    (e1, e2) -> Or e1 e2
+-- evals (Or e1 e2) = case (evals e1, evals e2) of
+--                     (B b1, B b2) -> B (b1 || b2)
+--                     (e1, e2) -> Or e1 e2
 
-evals (Not e1) = case evals e1 of
-                  (B b) -> B (not b)
-                  e -> Not e
+-- evals (Not e1) = case evals e1 of
+--                   (B b) -> B (not b)
+--                   e -> Not e
 
-evals (Iszero e1) = case evals e1 of
-                  (Num n) -> B (n == 0)
-                  (e) -> Iszero e
+-- evals (Iszero e1) = case evals e1 of
+--                   (Num n) -> B (n == 0)
+--                   (e) -> Iszero e
 
-evals (If e1 e2 e3) = case evals e1 of
-                        (B (True)) -> evals $ e2
-                        (B (False)) -> evals $ e3
-                        e -> If e e2 e3
+-- evals (If e1 e2 e3) = case evals e1 of
+--                         (B (True)) -> evals $ e2
+--                         (B (False)) -> evals $ e3
+--                         e -> If e e2 e3
 
-evals (Gt e1 e2) = case (evals e1, evals e2) of
-                     (Num n, Num m) -> B (n > m)
-                     (e1,e2) -> Gt e1 e2
+-- evals (Gt e1 e2) = case (evals e1, evals e2) of
+--                      (Num n, Num m) -> B (n > m)
+--                      (e1,e2) -> Gt e1 e2
 
-evals (Lt e1 e2) = case (evals e1, evals e2) of
-                     (Num n, Num m) -> B (n < m)
-                     (e1,e2) -> Lt e1 e2
+-- evals (Lt e1 e2) = case (evals e1, evals e2) of
+--                      (Num n, Num m) -> B (n < m)
+--                      (e1,e2) -> Lt e1 e2
 
-evals (Let e1 all@(Abs x e2)) = case evals e1 of
-                      (Num n) -> evals $ subs e2 (x, (Num n))
-                      (B b) -> evals $ subs e2 (x, (B b))
-                      e -> Let e all
+-- evals (Let e1 all@(Abs x e2)) = case evals e1 of
+--                       (Num n) -> evals $ subs e2 (x, (Num n))
+--                       (B b) -> evals $ subs e2 (x, (B b))
+--                       e -> Let e all
 
-evals (MatchNat e1 e2 all@(Abs x e3)) = 
-  case (evals e1) of
-    (Num n) -> if n == 0 then evals e2 else evals $ subs e3 (x, (Num (n - 1)))
-    (e) -> MatchNat e1 e2 all
+-- evals (MatchNat e1 e2 all@(Abs x e3)) = 
+--   case (evals e1) of
+--     (Num n) -> if n == 0 then evals e2 else evals $ subs e3 (x, (Num (n - 1)))
+--     (e) -> MatchNat e1 e2 all
 
-evals e = e
+-- evals e = e
 
 -- Ejemplos
 
