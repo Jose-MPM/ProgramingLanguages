@@ -63,7 +63,7 @@ instance Show Expr where
   show (If e1 e2 e3) = "if " ++ show e1 ++ " then " ++ show e2 ++ " else " ++ show e3
   show (Let e1 (Fn idr e2)) = "let " ++ show idr ++ " = " ++ show e1 ++ " in " ++ show e2
   show (Fn idr e) = "λ" ++ idr ++ "." ++ show e
-  show (App e1 e2) = show e1 ++ " " ++ show e2
+  show (App e1 e2) = "app " ++ show e1 ++ " " ++ show e2
 
   show (Raise e) = "raise " ++ show e
   show (Handle e1 idr e2) =  "hanlde " ++ show e1
@@ -91,16 +91,19 @@ data Frame
 
   | RaiseF
   | HandleF Identifier Expr
-  deriving (Eq, Show)
+  deriving (Eq)
 
 data Stack = Empty
            | S Frame Stack
-           deriving (Show, Eq)
+           deriving (Eq)
+instance Show Stack where
+  show (Empty) = "□"
+  show (S f s) = show f ++ " ; " ++ show s
 
 data State = E Stack Expr
            | R Stack Expr
            | P Stack Expr
-           deriving (Show, Eq)
+           deriving (Eq)
 
 -- Crea una instancia de la clase Show para los marcos de acuerdo
 -- a la sintaxis descrita en las notas del curso. (1 punto)
@@ -110,27 +113,31 @@ instance Show Frame where
     (AddFR e) -> "Add(" ++ (show e) ++ ", " ++ " _ )"
     (MulFL e) -> "Mul( _ " ++ ", " ++ (show e) ++ ")"
     (MulFR e) -> "Mul(" ++ (show e) ++ ", " ++ " _ )"
-    (SuccF _) -> "Succ( _ )"
-    (PredF _) -> "Pred( _ )"
-    (NotF _) -> "Not( _ )"
+
+    (SuccF) -> "Succ( _ )"
+    (PredF) -> "Pred( _ )"
+    (NotF) -> "Not( _ )"
+    (IszeroF) -> "Iszero( _ )"
+
     (AndFL e) -> "And( _ " ++ ", " ++ (show e) ++ ")"
     (AndFR e) -> "And(" ++ (show e) ++ ", " ++ " _ )"
     (OrFL e) -> "Or( _ " ++ ", " ++ (show e) ++ ")"
     (OrFR e) -> "Or(" ++ (show e) ++ ", " ++ " _ )"
-    (LtFL e) -> "Lt( _ " ++ ", " ++ (show b) ++ ")"
+    (LtFL e) -> "Lt( _ " ++ ", " ++ (show e) ++ ")"
     (LtFR e) -> "Lt(" ++ (show e) ++ ", " ++ " _ )"
     (GtFL e) -> "Gt( _ " ++ ", " ++ (show e) ++ ")"
     (GtFR e) -> "Gt(" ++ (show e) ++ ", " ++ " _ )"
     (EqFL e) -> "Eq( _ " ++ ", " ++ (show e) ++ ")"
     (EqFR e) -> "Eq(" ++ (show e) ++ ", " ++ " _ )"
-    (IfF _ e2 e3) = "If( _ , " ++ show e2 ++ " , " ++ show e3+" )"
-    (LetM x e) -> "Let(" ++ (show x) ++ ", _, " ++ (show e) ++ ")"
+
+    (IfF e1 e2) -> "If( _ , " ++ show e1 ++ " , " ++ show e2 ++ " )"
+    (LetF x e) -> "Let(" ++ (show x) ++ ", _, " ++ (show e) ++ ")"
 
 instance Show State where
   show e = case e of
-    E(st, expr) -> (show st) ++ " ≻ " ++ (show expr)
-    R(st, expr) -> (show st) ++ " ≺ " ++ (show expr)
-
+    E st expr  -> show st ++ " ≻ " ++ show expr
+    R st expr -> show st ++ " ≺ " ++ show expr
+    P st expr -> show st ++ " ≺≺ " ++ show expr
 -- | Obtine el conjunto de variable de una expresión
 
 -- Ejemplos
