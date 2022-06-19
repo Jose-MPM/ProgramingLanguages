@@ -109,20 +109,20 @@ data State = E Stack Expr
 -- a la sintaxis descrita en las notas del curso. (1 punto)
 instance Show Frame where
   show e = case e of
-    (AddFL e) -> "Add( _ " ++ ", " ++ (show e) ++ ")"
-    (AddFR e) -> "Add(" ++ (show e) ++ ", " ++ " _ )"
-    (MulFL e) -> "Mul( _ " ++ ", " ++ (show e) ++ ")"
-    (MulFR e) -> "Mul(" ++ (show e) ++ ", " ++ " _ )"
-
     (SuccF) -> "Succ( _ )"
     (PredF) -> "Pred( _ )"
     (NotF) -> "Not( _ )"
     (IszeroF) -> "Iszero( _ )"
 
+    (AddFL e) -> "Add( _ " ++ ", " ++ (show e) ++ ")"
+    (AddFR e) -> "Add(" ++ (show e) ++ ", " ++ " _ )"
+    (MulFL e) -> "Mul( _ " ++ ", " ++ (show e) ++ ")"
+    (MulFR e) -> "Mul(" ++ (show e) ++ ", " ++ " _ )"
     (AndFL e) -> "And( _ " ++ ", " ++ (show e) ++ ")"
     (AndFR e) -> "And(" ++ (show e) ++ ", " ++ " _ )"
     (OrFL e) -> "Or( _ " ++ ", " ++ (show e) ++ ")"
     (OrFR e) -> "Or(" ++ (show e) ++ ", " ++ " _ )"
+
     (LtFL e) -> "Lt( _ " ++ ", " ++ (show e) ++ ")"
     (LtFR e) -> "Lt(" ++ (show e) ++ ", " ++ " _ )"
     (GtFL e) -> "Gt( _ " ++ ", " ++ (show e) ++ ")"
@@ -132,6 +132,11 @@ instance Show Frame where
 
     (IfF e1 e2) -> "If( _ , " ++ show e1 ++ " , " ++ show e2 ++ " )"
     (LetF x e) -> "Let(" ++ (show x) ++ ", _, " ++ (show e) ++ ")"
+    (AppFL e) -> "App ( - , " ++ show e ++ " )" 
+    (AppFR e) -> "App ( " ++ show e ++ " , - )"
+
+    (RaiseF) -> "Raise ( - )"
+    (HandleF x e) -> "Handle ( - , " ++ show x ++ "." ++ show e ++ " )"
 
 instance Show State where
   show e = case e of
@@ -214,7 +219,7 @@ subst (Handle e1 x e2) s@(y, z)
 --- (E Empty (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
 --- eval s1
 --- >>> eval1 $ P (S (HandleF "x" (V "x")) Empty) (Raise (B False))
-
+--- >>> eval1 $ P (S SuccF (S (HandleF "x" (V "x")) Empty)) (Raise (B False))
 eval1 :: State -> State
 eval1 (E s e@(I n)) = R s e
 eval1 (E s e@(B b)) = R s e
@@ -311,6 +316,7 @@ isBlocked e = (eval1 $ eval1 e) == e
 -- >>> evals (E Empty (App (If (App (Fn "x" (Not (V "x"))) (B False)) (Fn "y" (Add (V "y") (I 3))) (Fn "z" (Mul (V "z") (I 2)))) (I 0)))
 -- >>> evals (E (S (AddFL (I 3)) Empty) (I 2))
 -- >>> evals (E (S (AddFL (I 3)) Empty) (B True))
+-- >>> evals $ P (S SuccF (S (HandleF "x" (V "x")) Empty)) (Raise (B False))
 evals :: State -> State
 evals e = let e' = eval1 e in
             if isBlocked e'
