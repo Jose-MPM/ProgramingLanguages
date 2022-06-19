@@ -1,10 +1,10 @@
-module Sintax where
+module Practica04 where
 
 import Data.List
 
 {- | Practica 04
      
-     Equipo:
+     Equipo: Lobitos
 
      * Alejandra Ortega Garcia - 420002495
      * Oscar Ramírez Gutiérrez - 419004283 
